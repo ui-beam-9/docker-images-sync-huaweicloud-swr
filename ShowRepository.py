@@ -33,10 +33,17 @@ if __name__ == "__main__":
         .with_region(SwrRegion.value_of(region)) \
         .build()
 
+    # 华为云 SWR API 要求：仓库名称中的斜杠需要替换为 $
+    # 例如：library/busybox -> library$busybox
+    repository_encoded = repository.replace('/', '$')
+    
+    if repository != repository_encoded:
+        print(f"仓库名称转换: {repository} -> {repository_encoded}")
+
     try:
         request = ShowRepositoryRequest()
         request.namespace = namespace
-        request.repository = repository
+        request.repository = repository_encoded
         response = client.show_repository(request)
         
         # Check if repository is public
