@@ -49,19 +49,20 @@
 
 | Secret 名称 | 说明 | 获取方式 |
 |------------|------|---------|
-| `HUAWEI_CLOUD_ACCESS_KEY` | 华为云 Access Key (AK) | 华为云控制台 → 我的凭证 → 访问密钥 |
-| `HUAWEI_CLOUD_SECRET_KEY` | 华为云 Secret Key (SK) | 华为云控制台 → 我的凭证 → 访问密钥 |
+| `HUAWEI_CLOUD_ACCESS_KEY` | 华为云 Access Key (AK) | [华为云访问凭证](https://console.huaweicloud.com/iam#/mine/accessKey) |
+| `HUAWEI_CLOUD_SECRET_KEY` | 华为云 Secret Key (SK) | [华为云访问凭证](https://console.huaweicloud.com/iam#/mine/accessKey) |
 
 #### 2. 华为云 SWR 配置
 
 | Secret 名称 | 说明 | 示例值 |
 |------------|------|--------|
 | `HUAWEI_SWR_REGION` | 华为云 SWR 区域代码 | `cn-east-3` |
-| `HUAWEI_SWR_NAMESPACE` | 华为云 SWR 命名空间 | `your-namespace` |
+| `HUAWEI_SWR_NAMESPACE` | 华为云 SWR 组织名称 | `your-organization` |
 
 **⚠️ 注意**：
 - `HUAWEI_SWR_REGION` 只需填写区域代码（如 `cn-east-3`），不要填写完整域名
-- 命名空间需要在华为云 SWR 控制台预先创建
+- 组织名称需要在 [华为云 SWR 控制台](https://console.huaweicloud.com/swr/?region=cn-east-3#/swr/dashboard) 预先创建
+- 该链接默认打开华东-上海一区域，如需切换区域，请在页面顶部自行选择
 
 #### 3. Docker 登录凭证
 
@@ -71,9 +72,9 @@
 | `HUAWEI_SWR_DOCKER_PASSWORD` | 华为云 SWR Docker 登录密码 | `从 SWR 控制台获取` |
 
 **获取 Docker 登录密码**：
-1. 登录华为云 SWR 控制台
-2. 右上角用户名 → 我的凭证 → 容器镜像服务登录指令
-3. 查看并复制登录密码
+1. 登录 [华为云 SWR 控制台](https://console.huaweicloud.com/swr/?region=cn-east-3#/swr/dashboard)
+2. 总览 → 右上角登录指令
+3. 查看并复制登录密码，建议使用长期有效登录指令
 
 ### 可选的 GitHub Secrets
 
@@ -230,17 +231,18 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 
 ## 📝 配置步骤
 
-### 第一步：创建华为云 SWR 命名空间
+### 第一步：创建华为云 SWR 组织
 
-1. 登录 [华为云控制台](https://console.huaweicloud.com/)
-2. 进入容器镜像服务（SWR）
-3. 创建组织（命名空间）
+1. 登录 [华为云 SWR 控制台](https://console.huaweicloud.com/swr/?region=cn-east-3#/swr/dashboard)
+   - 该链接默认打开华东-上海一区域，如需修改，请在页面顶部切换区域
+2. 点击左侧菜单 **组织管理**
+3. 点击 **创建组织**，输入组织名称并创建
 
 ### 第二步：获取访问凭证
 
-1. 访问 **我的凭证** → **访问密钥**
+1. 访问 [华为云访问凭证](https://console.huaweicloud.com/iam#/mine/accessKey)
 2. 创建或查看 Access Key (AK) 和 Secret Key (SK)
-3. 在 SWR 控制台获取 Docker 登录密码
+3. 在 [SWR 控制台](https://console.huaweicloud.com/swr/?region=cn-east-3#/swr/dashboard) 获取 Docker 登录密码
 
 ### 第三步：配置 GitHub Secrets
 
@@ -261,7 +263,7 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 
 1. **AK/SK 安全**: 请妥善保管访问密钥，不要提交到代码仓库
 2. **区域一致性**: 确保所有配置中的区域代码保持一致
-3. **命名空间**: 必须在华为云 SWR 控制台预先创建命名空间
+3. **组织名称**: 必须在 [华为云 SWR 控制台](https://console.huaweicloud.com/swr/?region=cn-east-3#/swr/dashboard) 预先创建组织
 4. **权限要求**: AK/SK 需要有 SWR 的读写权限
 5. **配额限制**: 注意华为云 SWR 的存储配额和流量限制
 6. **镜像大小**: 大镜像同步需要更长时间，请耐心等待
@@ -286,7 +288,7 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 ### 仓库设置公开失败
 
 1. 检查 AK/SK 是否有 SWR 权限
-2. 确认命名空间是否存在
+2. 确认组织名称是否存在
 3. 查看 Python 脚本执行日志
 
 ---
