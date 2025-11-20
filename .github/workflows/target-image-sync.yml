@@ -56,48 +56,97 @@ jobs:
         gh issue comment ${{ github.event.issue.number }} -b "镜像 ${ORIGIN_IMAGE} 同步中...<br>[详情请查看](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
         gh issue edit ${{ github.event.issue.number }} --add-label "syncing"
   
-    - name: Login to Docker Hub
+    - name: Login to Huawei SWR
       uses: docker/login-action@v1
       with:
-        registry: ${{ secrets.REGISTRY }}
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        registry: swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com
+        username: ${{ secrets.HUAWEI_SWR_DOCKER_USERNAME }}
+        password: ${{ secrets.HUAWEI_SWR_DOCKER_PASSWORD }}
     - name: Install Skopeo
       run: |
         sudo apt-get update
         sudo apt-get install -y skopeo
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    - name: Install Huawei Cloud SDK
+      run: |
+        pip install huaweicloudsdkcore huaweicloudsdkswr
     - name: Sync Docker Image
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
         BASE_IMAGE=$(echo ${ORIGIN_IMAGE} | sed 's/\(.*\):.*/\1/')
-        TARGET_IMAGE="${{ secrets.REGISTRY }}/${{ secrets.NAMESPACE }}/${ORIGIN_IMAGE}"
+        SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"
+        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${ORIGIN_IMAGE}"
+        
+        echo "开始同步镜像: ${ORIGIN_IMAGE} -> ${TARGET_IMAGE}"
+        # 使用 skopeo 直接复制镜像（推荐方式，更快且不占用本地空间）
         skopeo copy docker://${ORIGIN_IMAGE} docker://${TARGET_IMAGE}
+        
+        # 备选方案：使用 docker 命令同步（需要下载到本地再上传，较慢）
         # docker pull ${ORIGIN_IMAGE}
         # docker tag ${ORIGIN_IMAGE} ${TARGET_IMAGE}
         # docker push ${TARGET_IMAGE}
+        
+        echo "验证镜像同步结果"
         docker pull ${TARGET_IMAGE}
-        # docker inspect ${TARGET_IMAGE}
-        curl -s -X POST "${{ secrets.APIURL }}/docker_metadata/" \
-          -H "Content-Type: application/json" \
-          -d "`docker inspect ${TARGET_IMAGE}`"
-        # Capture the response from curl
-        RESPONSE=$(curl -s -X POST "${{ secrets.APIURL }}/set-image-public/" \
-          -H "Content-Type: application/json" \
-          -d "{\"namespace\": \"${{ secrets.NAMESPACE }}\" , \"repository\": \"${BASE_IMAGE}\" }")
     
-        # Define the expected value
-        EXPECTED_VALUE='{"message":"已将仓库设置为公开"}'
+    - name: Set Repository to Public
+      env:
+        HUAWEI_CLOUD_ACCESS_KEY: ${{ secrets.HUAWEI_CLOUD_ACCESS_KEY }}
+        HUAWEI_CLOUD_SECRET_KEY: ${{ secrets.HUAWEI_CLOUD_SECRET_KEY }}
+        HUAWEI_SWR_REGION: ${{ secrets.HUAWEI_SWR_REGION }}
+        HUAWEI_SWR_NAMESPACE: ${{ secrets.HUAWEI_SWR_NAMESPACE }}
+        REPOSITORY: ${{ steps.get-image.outputs.image }}
+      run: |
+        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        BASE_IMAGE=$(echo ${ORIGIN_IMAGE} | sed 's/\(.*\):.*/\1/')
+        
+        # Extract repository name from BASE_IMAGE (remove domain if present)
+        REPO_NAME=$(echo ${BASE_IMAGE} | sed 's|.*/||')
+        
+        echo "设置仓库为公开: ${REPO_NAME}"
+        export REPOSITORY=${REPO_NAME}
+        python UpdateRepo-Public.py
+        
+        if [ $? -eq 0 ]; then
+          echo "仓库设置为公开成功"
+        else
+          echo "仓库设置为公开失败"
+          exit 1
+        fi
     
-        # Check if the response matches the expected value
-        if [[ "$RESPONSE" == "$EXPECTED_VALUE" ]]; then
-          echo "API call was successful and returned the expected value."
-          gh issue comment ${{ github.event.issue.number }} -b "$(echo -e "\n镜像 \`${ORIGIN_IMAGE}\` 同步完成<br>请使用 \`${TARGET_IMAGE}\` 替代源镜像<br> <h1>快捷命令</h1>\n\`\`\`sh\n# Docker 拉取命令\ndocker pull ${TARGET_IMAGE}\ndocker tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Containerd 拉取命令\nctr images pull ${TARGET_IMAGE}\nctr images tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Shell 快速替换命令\nsed -i "s#${ORIGIN_IMAGE}#${TARGET_IMAGE}#g" 你的文件名\n\`\`\`\n")"
+    - name: Verify Repository is Public
+      env:
+        HUAWEI_CLOUD_ACCESS_KEY: ${{ secrets.HUAWEI_CLOUD_ACCESS_KEY }}
+        HUAWEI_CLOUD_SECRET_KEY: ${{ secrets.HUAWEI_CLOUD_SECRET_KEY }}
+        HUAWEI_SWR_REGION: ${{ secrets.HUAWEI_SWR_REGION }}
+        HUAWEI_SWR_NAMESPACE: ${{ secrets.HUAWEI_SWR_NAMESPACE }}
+        REPOSITORY: ${{ steps.get-image.outputs.image }}
+      run: |
+        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        BASE_IMAGE=$(echo ${ORIGIN_IMAGE} | sed 's/\(.*\):.*/\1/')
+        SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"
+        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${ORIGIN_IMAGE}"
+        
+        # Extract repository name from BASE_IMAGE (remove domain if present)
+        REPO_NAME=$(echo ${BASE_IMAGE} | sed 's|.*/||')
+        
+        echo "验证仓库是否为公开: ${REPO_NAME}"
+        export REPOSITORY=${REPO_NAME}
+        python ShowRepository.py
+        
+        if [ $? -eq 0 ]; then
+          echo "验证成功: 仓库已设置为公开"
+          gh issue comment ${{ github.event.issue.number }} -b "$(echo -e "\n镜像 \`${ORIGIN_IMAGE}\` 同步完成<br>请使用 \`${TARGET_IMAGE}\` 替代源镜像<br> <h1>快捷命令</h1>\n\`\`\`sh\n# Docker 拉取命令\ndocker pull ${TARGET_IMAGE}\ndocker tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Containerd 拉取命令\nctr images pull ${TARGET_IMAGE}\nctr images tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Shell 快速替换命令\nsed -i \"s#${ORIGIN_IMAGE}#${TARGET_IMAGE}#g\" 你的文件名\n\`\`\`\n")"
           gh issue edit ${{ github.event.issue.number }} --remove-label "syncing"
           gh issue edit ${{ github.event.issue.number }} --add-label "sync image succeeded" -b "IMAGE SYNC"
           gh issue close ${{ github.event.issue.number }} --reason "completed"
         else
-          echo "API call did not return the expected value."
-          echo "Response: $RESPONSE"
+          echo "验证失败: 仓库未设置为公开"
           exit 1
         fi
     - name: Fail Sync
