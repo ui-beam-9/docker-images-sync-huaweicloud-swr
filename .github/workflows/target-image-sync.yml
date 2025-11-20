@@ -143,7 +143,7 @@ jobs:
         
         echo "设置仓库为公开: ${REPO_PATH}"
         export REPOSITORY=${REPO_PATH}
-        python UpdateRepo-Public.py
+        python UpdateRepo.py
         
         if [ $? -eq 0 ]; then
           echo "仓库设置为公开成功"
