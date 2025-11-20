@@ -78,17 +78,23 @@ jobs:
     - name: Sync Docker Image
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        REMOVE_DOMAIN="${{ secrets.REMOVE_SOURCE_DOMAIN }}"
         
-        # 去除源镜像的域名部分（如果存在）
-        # 例如：docker.io/library/busybox:latest -> library/busybox:latest
-        if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
-          # 第一部分包含点号，说明有域名，去除域名
-          IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
-          echo "检测到域名，去除后: ${IMAGE_WITHOUT_DOMAIN}"
+        # 根据配置决定是否去除源镜像的域名部分
+        # REMOVE_SOURCE_DOMAIN 设置为 true 时去除域名，否则保留完整镜像名
+        if [[ "${REMOVE_DOMAIN}" == "true" ]]; then
+          # 去除域名模式：docker.io/library/busybox:latest -> library/busybox:latest
+          if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
+            IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+            echo "✓ 已启用域名去除，检测到域名，去除后: ${IMAGE_WITHOUT_DOMAIN}"
+          else
+            IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
+            echo "✓ 已启用域名去除，但未检测到域名，保持原样: ${IMAGE_WITHOUT_DOMAIN}"
+          fi
         else
-          # 没有域名，保持原样
+          # 保留完整镜像名模式：docker.io/library/busybox:latest -> docker.io/library/busybox:latest
           IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
-          echo "未检测到域名，保持原样: ${IMAGE_WITHOUT_DOMAIN}"
+          echo "✗ 未启用域名去除，使用完整镜像名: ${IMAGE_WITHOUT_DOMAIN}"
         fi
         
         BASE_IMAGE=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
@@ -119,15 +125,20 @@ jobs:
         REPOSITORY: ${{ steps.get-image.outputs.image }}
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        REMOVE_DOMAIN="${{ secrets.REMOVE_SOURCE_DOMAIN }}"
         
-        # 去除源镜像的域名部分（与同步步骤逻辑一致）
-        if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
-          IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+        # 根据配置决定是否去除源镜像的域名部分（与同步步骤逻辑一致）
+        if [[ "${REMOVE_DOMAIN}" == "true" ]]; then
+          if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
+            IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+          else
+            IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
+          fi
         else
           IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
         fi
         
-        # 去除标签，获取仓库路径（保留中间路径，如 library/busybox）
+        # 去除标签，获取仓库路径
         REPO_PATH=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
         
         echo "设置仓库为公开: ${REPO_PATH}"
@@ -150,15 +161,20 @@ jobs:
         REPOSITORY: ${{ steps.get-image.outputs.image }}
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        REMOVE_DOMAIN="${{ secrets.REMOVE_SOURCE_DOMAIN }}"
         
-        # 去除源镜像的域名部分（与同步步骤逻辑一致）
-        if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
-          IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+        # 根据配置决定是否去除源镜像的域名部分（与同步步骤逻辑一致）
+        if [[ "${REMOVE_DOMAIN}" == "true" ]]; then
+          if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
+            IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+          else
+            IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
+          fi
         else
           IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
         fi
         
-        # 去除标签，获取仓库路径（保留中间路径，如 library/busybox）
+        # 去除标签，获取仓库路径
         REPO_PATH=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
         
         SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"

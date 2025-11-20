@@ -29,6 +29,17 @@
   - 这是通过华为云 SWR 控制台生成的登录密码（与 SK 不同）
   - 获取方式：登录华为云 SWR 控制台 → 右上角用户名 → 我的凭证 → 容器镜像服务登录指令
 
+## 可选的 Secrets
+
+### 4. 镜像同步选项
+- **`REMOVE_SOURCE_DOMAIN`**: 是否去除源镜像的域名部分（可选）
+  - 可选值：`true` 或 `false`（或不设置）
+  - **默认值**：`false`（不设置时默认保留完整镜像名）
+  - 作用说明：
+    - 设置为 `true`：同步时去除域名，如 `docker.io/library/busybox:latest` → `swr.xxx.com/namespace/library/busybox:latest`
+    - 设置为 `false` 或不设置：保留完整路径，如 `docker.io/library/busybox:latest` → `swr.xxx.com/namespace/docker.io/library/busybox:latest`
+  - 💡 **推荐配置**：`true`（去除域名，节省存储空间和简化路径）
+
 ## 配置步骤
 
 1. 进入 GitHub Repository
