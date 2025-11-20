@@ -78,11 +78,27 @@ jobs:
     - name: Sync Docker Image
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
-        BASE_IMAGE=$(echo ${ORIGIN_IMAGE} | sed 's/\(.*\):.*/\1/')
-        SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"
-        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${ORIGIN_IMAGE}"
         
-        echo "开始同步镜像: ${ORIGIN_IMAGE} -> ${TARGET_IMAGE}"
+        # 去除源镜像的域名部分（如果存在）
+        # 例如：docker.io/library/busybox:latest -> library/busybox:latest
+        if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
+          # 第一部分包含点号，说明有域名，去除域名
+          IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+          echo "检测到域名，去除后: ${IMAGE_WITHOUT_DOMAIN}"
+        else
+          # 没有域名，保持原样
+          IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
+          echo "未检测到域名，保持原样: ${IMAGE_WITHOUT_DOMAIN}"
+        fi
+        
+        BASE_IMAGE=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
+        SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"
+        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${IMAGE_WITHOUT_DOMAIN}"
+        
+        echo "开始同步镜像:"
+        echo "  源镜像: ${ORIGIN_IMAGE}"
+        echo "  目标镜像: ${TARGET_IMAGE}"
+        
         # 使用 skopeo 直接复制镜像（推荐方式，更快且不占用本地空间）
         skopeo copy docker://${ORIGIN_IMAGE} docker://${TARGET_IMAGE}
         
@@ -103,13 +119,19 @@ jobs:
         REPOSITORY: ${{ steps.get-image.outputs.image }}
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
-        BASE_IMAGE=$(echo ${ORIGIN_IMAGE} | sed 's/\(.*\):.*/\1/')
         
-        # Extract repository name from BASE_IMAGE (remove domain if present)
-        REPO_NAME=$(echo ${BASE_IMAGE} | sed 's|.*/||')
+        # 去除源镜像的域名部分（与同步步骤逻辑一致）
+        if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
+          IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+        else
+          IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
+        fi
         
-        echo "设置仓库为公开: ${REPO_NAME}"
-        export REPOSITORY=${REPO_NAME}
+        # 去除标签，获取仓库路径（保留中间路径，如 library/busybox）
+        REPO_PATH=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
+        
+        echo "设置仓库为公开: ${REPO_PATH}"
+        export REPOSITORY=${REPO_PATH}
         python UpdateRepo-Public.py
         
         if [ $? -eq 0 ]; then
@@ -128,15 +150,22 @@ jobs:
         REPOSITORY: ${{ steps.get-image.outputs.image }}
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
-        BASE_IMAGE=$(echo ${ORIGIN_IMAGE} | sed 's/\(.*\):.*/\1/')
+        
+        # 去除源镜像的域名部分（与同步步骤逻辑一致）
+        if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
+          IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
+        else
+          IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
+        fi
+        
+        # 去除标签，获取仓库路径（保留中间路径，如 library/busybox）
+        REPO_PATH=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
+        
         SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"
-        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${ORIGIN_IMAGE}"
+        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${IMAGE_WITHOUT_DOMAIN}"
         
-        # Extract repository name from BASE_IMAGE (remove domain if present)
-        REPO_NAME=$(echo ${BASE_IMAGE} | sed 's|.*/||')
-        
-        echo "验证仓库是否为公开: ${REPO_NAME}"
-        export REPOSITORY=${REPO_NAME}
+        echo "验证仓库是否为公开: ${REPO_PATH}"
+        export REPOSITORY=${REPO_PATH}
         python ShowRepository.py
         
         if [ $? -eq 0 ]; then
