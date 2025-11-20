@@ -1,4 +1,3 @@
-<div align="center">
 
 # Docker 镜像同步到华为云 SWR
 
