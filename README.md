@@ -195,9 +195,17 @@ location ^~ / {
 
 使用一键部署脚本：
 
+**国际版（推荐海外服务器使用）**
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ui-beam-9/docker-images-sync-huaweicloud-swr/main/quick-deploy.sh)
 ```
+
+**国内版（推荐国内服务器使用，使用 GitHub 代理加速）**
+```bash
+bash <(curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/ui-beam-9/docker-images-sync-huaweicloud-swr/main/quick-deploy.sh)
+```
+
+> 💡 **提示**：如果国际版无法访问，请使用国内版（通过 ghproxy.net 代理加速访问 GitHub）
 
 脚本功能：
 - ✅ 自动检测 Docker 和 Docker Compose
