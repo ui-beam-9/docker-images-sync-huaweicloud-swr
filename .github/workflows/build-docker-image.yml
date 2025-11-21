@@ -100,8 +100,8 @@ jobs:
           from huaweicloudsdkcore.auth.credentials import BasicCredentials
           from huaweicloudsdkcore.http.http_config import HttpConfig
           from huaweicloudsdkcore.exceptions import exceptions
-          from huaweicloudsdkswr.v2 import SWRClient, UpdateRepoRequest, UpdateRepoRequestBody
-          from huaweicloudsdkswr.v2.region.swr_region import SWRRegion
+          from huaweicloudsdkswr.v2 import SwrClient, UpdateRepoRequest, UpdateRepoRequestBody
+          from huaweicloudsdkswr.v2.region.swr_region import SwrRegion
           
           # 配置
           ak = os.environ.get('HUAWEI_CLOUD_ACCESS_KEY')
@@ -112,9 +112,9 @@ jobs:
           
           # 创建客户端
           credentials = BasicCredentials(ak, sk)
-          client = SWRClient.new_builder() \
+          client = SwrClient.new_builder() \
               .with_credentials(credentials) \
-              .with_region(SWRRegion.value_of(region)) \
+              .with_region(SwrRegion.value_of(region)) \
               .build()
           
           # 设置为公开
