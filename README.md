@@ -16,6 +16,8 @@
 ### ✨ 主要特性
 
 - ✅ **自动化同步**：通过 Issue 触发，全自动同步流程
+- ✅ **企业微信集成**：通过企业微信应用发送镜像名称，自动创建同步任务并接收实时通知
+- ✅ **自动构建镜像**：自动构建企业微信服务器 Docker 镜像并推送到 SWR
 - ✅ **官方 SDK**：使用华为云官方 Python SDK，稳定可靠
 - ✅ **灵活配置**：支持域名去除、区域选择等多种配置
 - ✅ **状态验证**：自动设置镜像为公开并验证状态
@@ -33,7 +35,124 @@
 3. 提交 Issue，GitHub Actions 会自动开始同步
 4. 同步完成后，Issue 会自动关闭并显示同步结果
 
-### 2️⃣ 查询已同步镜像
+### 2️⃣ 通过企业微信同步（推荐）
+
+通过企业微信应用发送镜像名称，自动创建同步任务并接收实时通知。
+
+#### 使用步骤
+
+1. 在企业微信中打开 **镜像同步助手** 应用
+2. 直接发送镜像名称，例如：
+   ```
+   docker.io/library/nginx:latest
+   ```
+3. 服务器自动创建 GitHub Issue 并触发同步
+4. 收到企业微信通知消息：
+   ```
+   ✅ 镜像同步任务已创建
+   
+   镜像名称: docker.io/library/nginx:latest
+   Issue 编号: #123
+   状态: 等待同步
+   
+   查看详情: https://github.com/...
+   ```
+
+#### 部署企业微信服务器
+
+**服务器代码位置**：`wecom-webhook/` 文件夹
+
+**步骤 1：配置环境变量**
+
+```bash
+cd wecom-webhook
+cp .env.example .env
+nano .env
+```
+
+填写以下配置：
+
+```bash
+# 企业微信应用配置
+WECOM_CORP_ID=your_corp_id_here           # 企业 ID
+WECOM_AGENT_ID=1000002                    # 应用 ID
+WECOM_SECRET=your_app_secret_here         # 应用密钥
+WECOM_TOKEN=your_random_token             # 接收消息 Token（自定义，至少 32 位）
+WECOM_ENCODING_AES_KEY=your_aes_key       # 加解密密钥（43 位）
+WECOM_API_BASE=https://api-work-weixin.ui-beam.com  # API 反代地址
+
+
+# GitHub 配置
+GITHUB_TOKEN=ghp_xxxxx                    # GitHub Personal Access Token
+GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo）
+```
+
+**配置说明**：
+
+| 配置项 | 说明 | 获取方式 |
+|--------|------|---------|
+| `WECOM_CORP_ID` | 企业 ID | 企业微信管理后台 → 我的企业 → 企业信息 |
+| `WECOM_AGENT_ID` | 应用 ID | 应用详情页面 → AgentId |
+| `WECOM_SECRET` | 应用密钥 | 应用详情页面 → Secret（点击查看）|
+| `WECOM_TOKEN` | 接收消息 Token | 自定义字符串，至少 32 位 |
+| `WECOM_ENCODING_AES_KEY` | 加解密密钥 | 随机生成，43 位字符 |
+| `WECOM_API_BASE` | API 反代地址 | `https://api-work-weixin.ui-beam.com`（反代 `https://qyapi.weixin.qq.com`）|
+| `GITHUB_TOKEN` | GitHub Token | [GitHub Settings](https://github.com/settings/tokens)，需要 `repo` 权限 |
+| `GITHUB_REPO` | 仓库名称 | 格式：`owner/repo` |
+
+**步骤 2：启动服务**
+
+**方式一：使用预构建的 Docker 镜像（推荐）**
+
+项目已配置自动构建 Docker 镜像并推送到华为云 SWR，可以直接使用：
+
+```bash
+# 拉取最新镜像
+docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
+
+# 运行容器
+docker run -d \
+  --name wecom-webhook \
+  -p 8080:8080 \
+  --env-file .env \
+  swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
+
+# 查看日志
+docker logs -f wecom-webhook
+```
+
+**方式二：本地构建并启动**
+
+```bash
+# 使用启动脚本（推荐）
+chmod +x start.sh
+./start.sh
+
+# 或使用 Docker Compose
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 健康检查
+curl http://localhost:8080/health
+```
+
+**步骤 3：配置企业微信应用**
+
+1. 登录 [企业微信管理后台](https://work.weixin.qq.com/wework_admin/frame)
+2. 进入 **应用管理** → 你的应用 → **接收消息**
+3. 点击 **设置 API 接收**，填写：
+   - **URL**: `https://your-domain.com/wecom/callback`（你的服务器公网地址）
+   - **Token**: 与 `.env` 中的 `WECOM_TOKEN` 相同
+   - **EncodingAESKey**: 与 `.env` 中的 `WECOM_ENCODING_AES_KEY` 相同
+4. 点击 **保存**，看到 ✅ 验证成功即可
+
+**注意**：
+- `api-work-weixin.ui-beam.com` 是企业微信 API 的反代地址，用于调用企业微信 API
+- Webhook 服务器需要部署在有公网访问的服务器上
+
+### 3️⃣ 查询已同步镜像
 
 访问 [已同步镜像查询](https://404.ui-beam.com/404.html) 查看已经同步过的镜像列表。
 
@@ -209,15 +328,95 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 ### 核心组件
 
 - **GitHub Actions**: 自动化工作流引擎
+- **企业微信 Webhook 服务器**: 接收企业微信消息，自动创建 GitHub Issues
 - **Skopeo**: 镜像复制工具，无需本地存储
 - **华为云 Python SDK**: 官方 SDK，用于设置和验证镜像权限
 - **华为云 SWR**: 目标镜像仓库
+
+### 工作流程
+
+```
+┌──────────────────────────┐
+│     用户在企业微信        │
+│   发送镜像名称消息        │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│   Webhook 服务器          │
+│  （你的服务器，公网地址）  │
+│  - 接收并解密消息         │
+│  - 提取镜像名称           │
+└────────────┬─────────────┘
+             │
+             ▼
+┌──────────────────────────┐
+│    调用 GitHub API       │
+│    创建 Issue            │
+└────────────┬─────────────┘
+             │
+       ┌─────┴─────┐
+       │           │
+       ▼           ▼
+┌─────────────┐  ┌──────────────────────┐
+│GitHub Actions│  │  调用企业微信 API     │
+│  自动同步    │  │ （反代地址）          │
+│             │  │  发送通知消息         │
+│  - 登录 SWR │  └──────────┬───────────┘
+│  - 同步镜像 │             │
+│  - 设为公开 │             ▼
+└──────┬──────┘  ┌──────────────────────┐
+       │         │   用户收到通知消息    │
+       │         │                      │
+       ▼         │  ✅ 镜像同步任务已创建 │
+┌─────────────┐  │  镜像: nginx:latest  │
+│  华为云 SWR  │  │  Issue: #123         │
+│  存储镜像    │  │  状态: 等待同步       │
+└─────────────┘  └──────────────────────┘
+```
+
+**说明**：
+- **Webhook 服务器**：需要部署在公网可访问的服务器上
+- **企业微信 API 反代**：`api-work-weixin.ui-beam.com` 反代 `qyapi.weixin.qq.com`
+- **消息通知**：Issue 创建后立即发送，用户实时收到反馈
 
 ### 依赖包
 
 项目自动安装以下 Python 依赖：
 - `huaweicloudsdkcore`: 华为云 SDK 核心库
 - `huaweicloudsdkswr`: 华为云容器镜像服务 SDK
+
+### GitHub Actions 工作流
+
+项目包含两个自动化工作流：
+
+#### 1. 镜像同步工作流（`target-image-sync.yml`）
+- **触发条件**: 创建带有 `sync image` 标签的 Issue
+- **功能**:
+  - 使用 Skopeo 同步 Docker 镜像到华为云 SWR
+  - 自动设置镜像仓库为公开
+  - 验证镜像仓库状态
+  - 同步完成后自动关闭 Issue
+
+#### 2. Docker 镜像构建工作流（`build-docker-image.yml`）
+- **触发条件**: 
+  - 推送代码到 `main`/`master` 分支（`wecom-webhook/` 目录有变化）
+  - 手动触发（可指定镜像标签）
+- **功能**:
+  - 自动构建企业微信服务器 Docker 镜像
+  - 推送镜像到华为云 SWR
+  - 自动设置镜像仓库为公开
+  - 支持多标签（commit SHA + latest）
+  - 使用 GitHub Actions 缓存加速构建
+
+**使用预构建镜像**：
+```bash
+# 拉取最新镜像
+docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
+
+# 使用特定版本
+docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:abc1234
+```
 
 ### 技术优势
 
@@ -291,12 +490,23 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 2. 确认组织名称是否存在
 3. 查看 Python 脚本执行日志
 
+### 企业微信消息接收问题
+
+1. 检查 Webhook 服务器是否正常运行：`curl http://localhost:8080/health`
+2. 确认企业微信应用配置是否正确（`WECOM_CORP_ID`, `WECOM_AGENT_ID`, `WECOM_SECRET`）
+3. 检查企业微信 API 反代是否可用
+4. 查看服务器日志：`cd wecom-webhook && docker-compose logs -f`
+5. 验证 Access Token 获取是否成功
+6. 确认 GitHub Token 权限正确
+
 ---
 
 ## 📚 相关资源
 
+### 官方文档
 - [华为云 SWR 官方文档](https://support.huaweicloud.com/swr/index.html)
 - [华为云 Python SDK](https://github.com/huaweicloud/huaweicloud-sdk-python-v3)
+- [企业微信开发文档](https://developer.work.weixin.qq.com/document/)
 - [Skopeo 官方文档](https://github.com/containers/skopeo)
 - [GitHub Actions 文档](https://docs.github.com/en/actions)
 

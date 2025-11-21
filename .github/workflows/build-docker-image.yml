@@ -1,0 +1,151 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'wecom-webhook/**'
+      - '.github/workflows/build-docker-image.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'wecom-webhook/**'
+  schedule:
+    # 每天 UTC 0:00 和 12:00 运行
+    # 北京时间（UTC+8）对应：UTC 16:00（北京时间 0:00）和 UTC 4:00（北京时间 12:00）
+    # 如需调整为北京时间，请使用：'0 16 * * *' 和 '0 4 * * *'
+  - cron: '0 16 * * *'   # UTC 16:00 = 北京时间 0:00（第二天）
+  - cron: '0 4 * * *'    # UTC 4:00 = 北京时间 12:00
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+
+env:
+  IMAGE_NAME: wecom-webhook-server
+
+jobs:
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Huawei SWR
+        uses: docker/login-action@v3
+        with:
+          registry: swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com
+          username: ${{ secrets.HUAWEI_SWR_DOCKER_USERNAME }}
+          password: ${{ secrets.HUAWEI_SWR_DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          # 生成版本标签
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            # 使用 commit SHA 的前 7 位作为标签
+            TAG="${GITHUB_SHA::7}"
+          fi
+          
+          # 设置镜像完整路径
+          IMAGE_FULL_NAME="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${IMAGE_NAME}"
+          
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "image=${IMAGE_FULL_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${TAG}" >> $GITHUB_OUTPUT
+          
+          # 输出信息
+          echo "Building image: ${IMAGE_FULL_NAME}:${TAG}"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./wecom-webhook
+          file: ./wecom-webhook/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Set repository to public
+        run: |
+          # 安装华为云 SDK
+          pip install huaweicloudsdkcore huaweicloudsdkswr
+          
+          # 设置镜像仓库为公开
+          python - <<EOF
+          import os
+          from huaweicloudsdkcore.auth.credentials import BasicCredentials
+          from huaweicloudsdkcore.http.http_config import HttpConfig
+          from huaweicloudsdkcore.exceptions import exceptions
+          from huaweicloudsdkswr.v2 import SWRClient, UpdateRepoRequest, UpdateRepoRequestBody
+          from huaweicloudsdkswr.v2.region.swr_region import SWRRegion
+          
+          # 配置
+          ak = os.environ.get('HUAWEI_CLOUD_ACCESS_KEY')
+          sk = os.environ.get('HUAWEI_CLOUD_SECRET_KEY')
+          region = os.environ.get('HUAWEI_SWR_REGION')
+          namespace = os.environ.get('HUAWEI_SWR_NAMESPACE')
+          repository = '${IMAGE_NAME}'
+          
+          # 创建客户端
+          credentials = BasicCredentials(ak, sk)
+          client = SWRClient.new_builder() \
+              .with_credentials(credentials) \
+              .with_region(SWRRegion.value_of(region)) \
+              .build()
+          
+          # 设置为公开
+          try:
+              request = UpdateRepoRequest()
+              request.namespace = namespace
+              request.repository = repository
+              request.body = UpdateRepoRequestBody(is_public=True)
+              
+              response = client.update_repo(request)
+              print(f"✅ 成功设置镜像仓库为公开: {namespace}/{repository}")
+          except exceptions.ClientRequestException as e:
+              print(f"❌ 设置失败: {e.error_msg}")
+              exit(1)
+          EOF
+        env:
+          HUAWEI_CLOUD_ACCESS_KEY: ${{ secrets.HUAWEI_CLOUD_ACCESS_KEY }}
+          HUAWEI_CLOUD_SECRET_KEY: ${{ secrets.HUAWEI_CLOUD_SECRET_KEY }}
+          HUAWEI_SWR_REGION: ${{ secrets.HUAWEI_SWR_REGION }}
+          HUAWEI_SWR_NAMESPACE: ${{ secrets.HUAWEI_SWR_NAMESPACE }}
+
+      - name: Image build summary
+        run: |
+          echo "## 🎉 Docker 镜像构建成功！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 镜像信息" >> $GITHUB_STEP_SUMMARY
+          echo "- **镜像名称**: \`${{ steps.meta.outputs.image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **标签**: \`${{ steps.meta.outputs.tag }}\`, \`latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **提交 SHA**: \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 使用方式" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# 或使用 latest 标签" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ steps.meta.outputs.image }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
