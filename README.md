@@ -201,11 +201,56 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ui-beam-9/docker-images-sync
 
 脚本功能：
 - ✅ 自动检测 Docker 和 Docker Compose
+- ✅ 智能检测运行中的容器，提供管理选项
 - ✅ 支持自定义安装目录（默认 `/opt/wecom-webhook`）
 - ✅ 自动检测权限，需要时提示使用 sudo
 - ✅ 两种部署方式可选：Docker 镜像部署 或 服务器直接部署
 
-> � 脚本源码：[quick-deploy.sh](./quick-deploy.sh)
+> 📄 脚本源码：[quick-deploy.sh](./quick-deploy.sh)
+
+<details>
+<summary>💡 容器管理功能</summary>
+
+如果检测到已有运行中的 Webhook 服务器，脚本会自动进入管理模式，提供以下选项：
+
+**1️⃣ 更新镜像**
+- 拉取最新版本镜像
+- 自动重启服务
+- 保留现有配置
+- **适用场景**：代码更新后快速升级
+
+**2️⃣ 重新安装**
+- 可选择备份现有配置（自动备份为 `.env.backup.时间戳`）
+- 删除现有部署
+- 重新进行全新安装
+- **适用场景**：更改安装目录或重新配置
+
+**3️⃣ 停止并删除**
+- 停止运行中的服务
+- 可选择是否删除部署目录
+- **适用场景**：完全卸载服务
+
+**使用示例：更新到最新版本**
+```bash
+# 运行快速部署脚本
+bash <(curl -fsSL https://raw.githubusercontent.com/ui-beam-9/docker-images-sync-huaweicloud-swr/main/quick-deploy.sh)
+
+# 输出：
+🔍 检测到运行中的 Webhook 服务器
+容器名称: wecom-webhook-server
+容器 ID: abc123...
+部署目录: /opt/wecom-webhook
+
+请选择操作：
+1) 更新镜像（拉取最新镜像并重启）
+2) 重新安装（删除现有部署，重新配置）
+3) 停止并删除（停止服务并删除容器）
+4) 取消
+
+# 输入 1 即可自动完成更新
+```
+
+</details>
 
 #### 🔧 手动部署
 

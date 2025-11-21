@@ -20,6 +20,152 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
+# 检测是否有运行中的容器
+WEBHOOK_IMAGE="swr.cn-east-3.myhuaweicloud.com/ui_beam-images/wecom-webhook-server:latest"
+RUNNING_CONTAINER=$(docker ps --filter "ancestor=$WEBHOOK_IMAGE" --format "{{.ID}}" 2>/dev/null || true)
+
+if [ -n "$RUNNING_CONTAINER" ]; then
+    echo "🔍 检测到运行中的 Webhook 服务器"
+    CONTAINER_NAME=$(docker ps --filter "id=$RUNNING_CONTAINER" --format "{{.Names}}")
+    CONTAINER_DIR=$(docker inspect --format='{{range .Mounts}}{{if eq .Destination "/app"}}{{.Source}}{{end}}{{end}}' "$RUNNING_CONTAINER" 2>/dev/null || echo "未知")
+    
+    echo "容器名称: $CONTAINER_NAME"
+    echo "容器 ID: $RUNNING_CONTAINER"
+    if [ "$CONTAINER_DIR" != "未知" ] && [ -n "$CONTAINER_DIR" ]; then
+        DEPLOY_DIR=$(dirname "$CONTAINER_DIR" 2>/dev/null || echo "未知")
+        echo "部署目录: $DEPLOY_DIR"
+    fi
+    echo ""
+    echo "请选择操作："
+    echo "1) 更新镜像（拉取最新镜像并重启）"
+    echo "2) 重新安装（删除现有部署，重新配置）"
+    echo "3) 停止并删除（停止服务并删除容器）"
+    echo "4) 取消"
+    echo ""
+    read -p "请输入选项 (1/2/3/4): " -n 1 -r MANAGE_MODE
+    echo ""
+    echo ""
+    
+    case "$MANAGE_MODE" in
+        1)
+            # 更新镜像
+            echo "🔄 更新镜像中..."
+            echo ""
+            
+            # 查找 docker-compose.yml 所在目录
+            COMPOSE_DIR=""
+            for dir in /opt/wecom-webhook ~/wecom-webhook ./wecom-webhook; do
+                if [ -f "$dir/docker-compose.yml" ]; then
+                    COMPOSE_DIR="$dir"
+                    break
+                fi
+            done
+            
+            if [ -z "$COMPOSE_DIR" ]; then
+                echo "❌ 错误: 未找到 docker-compose.yml 文件"
+                echo "请手动进入部署目录执行以下命令："
+                echo "  docker-compose pull"
+                echo "  docker-compose up -d"
+                exit 1
+            fi
+            
+            cd "$COMPOSE_DIR"
+            echo "📂 工作目录: $COMPOSE_DIR"
+            echo ""
+            
+            echo "📥 拉取最新镜像..."
+            docker-compose pull
+            
+            echo "🔄 重启服务..."
+            docker-compose up -d
+            
+            echo ""
+            echo "✅ 更新完成！"
+            echo ""
+            echo "📝 查看日志："
+            echo "   cd $COMPOSE_DIR"
+            echo "   docker-compose logs -f"
+            echo ""
+            exit 0
+            ;;
+        2)
+            # 重新安装
+            echo "🔄 重新安装..."
+            echo ""
+            
+            # 查找 docker-compose.yml 所在目录
+            COMPOSE_DIR=""
+            for dir in /opt/wecom-webhook ~/wecom-webhook ./wecom-webhook; do
+                if [ -f "$dir/docker-compose.yml" ]; then
+                    COMPOSE_DIR="$dir"
+                    break
+                fi
+            done
+            
+            if [ -n "$COMPOSE_DIR" ]; then
+                echo "📂 找到现有部署: $COMPOSE_DIR"
+                read -p "是否备份现有配置? (Y/n): " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                    BACKUP_FILE="${COMPOSE_DIR}/.env.backup.$(date +%Y%m%d_%H%M%S)"
+                    cp "${COMPOSE_DIR}/.env" "$BACKUP_FILE" 2>/dev/null && echo "✅ 配置已备份到: $BACKUP_FILE" || echo "⚠️  备份失败"
+                fi
+                echo ""
+                cd "$COMPOSE_DIR"
+                docker-compose down
+                cd ..
+                rm -rf "$COMPOSE_DIR"
+            fi
+            
+            echo "继续全新安装流程..."
+            echo ""
+            # 继续执行后续的安装流程
+            ;;
+        3)
+            # 停止并删除
+            echo "🛑 停止并删除服务..."
+            echo ""
+            
+            # 查找 docker-compose.yml 所在目录
+            COMPOSE_DIR=""
+            for dir in /opt/wecom-webhook ~/wecom-webhook ./wecom-webhook; do
+                if [ -f "$dir/docker-compose.yml" ]; then
+                    COMPOSE_DIR="$dir"
+                    break
+                fi
+            done
+            
+            if [ -n "$COMPOSE_DIR" ]; then
+                cd "$COMPOSE_DIR"
+                docker-compose down
+                echo "✅ 服务已停止"
+                echo ""
+                read -p "是否删除部署目录? (y/N): " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    cd ..
+                    rm -rf "$COMPOSE_DIR"
+                    echo "✅ 部署目录已删除: $COMPOSE_DIR"
+                fi
+            else
+                docker stop "$RUNNING_CONTAINER"
+                docker rm "$RUNNING_CONTAINER"
+                echo "✅ 容器已停止并删除"
+            fi
+            echo ""
+            exit 0
+            ;;
+        4)
+            echo "已取消"
+            exit 0
+            ;;
+        *)
+            echo "❌ 无效的选项"
+            exit 1
+            ;;
+    esac
+fi
+
 # 选择安装目录
 echo "📂 设置安装目录"
 echo "默认安装目录: /opt/wecom-webhook"
