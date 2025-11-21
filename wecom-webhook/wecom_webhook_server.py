@@ -409,8 +409,8 @@ def notify_status():
         # 从 Issue 中获取用户 ID
         user_id = get_user_id_from_issue(issue_number)
         if not user_id:
-            logger.warning(f"⚠️ 无法获取 Issue #{issue_number} 的用户 ID，跳过通知")
-            return jsonify({"error": "User ID not found"}), 404
+            logger.warning(f"⚠️ 无法获取 Issue #{issue_number} 的用户 ID，跳过通知（可能是非企业微信创建的 Issue）")
+            return jsonify({"success": True, "message": "Skipped: No user ID found"}), 200
         
         # 根据状态发送不同的通知
         if status == 'syncing':
