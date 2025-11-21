@@ -123,10 +123,6 @@ GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo�
 
 # Webhook 配置
 WEBHOOK_SECRET=your_webhook_secret        # Webhook 验证密钥（需与 GitHub Secrets 中配置一致）
-
-# 华为云 SWR 配置
-HUAWEI_SWR_REGION=cn-east-3              # 华为云 SWR 区域
-HUAWEI_SWR_NAMESPACE=ui_beam-images      # 华为云 SWR 命名空间
 ```
 
 **配置说明**：
@@ -141,9 +137,7 @@ HUAWEI_SWR_NAMESPACE=ui_beam-images      # 华为云 SWR 命名空间
 | `WECOM_API_BASE` | 企业微信 API 地址 | 默认：`https://qyapi.weixin.qq.com`<br>动态 IP 需用固定IP服务器做反代（见下文） |
 | `GITHUB_TOKEN` | GitHub Token | [GitHub Settings](https://github.com/settings/tokens)，需要 `repo` 权限 |
 | `GITHUB_REPO` | 仓库名称 | 格式：`owner/repo` |
-| `WEBHOOK_SECRET` | Webhook 验证密钥 | 随机生成，至少 32 位，需与 GitHub Secrets 中配置一致 |
-| `HUAWEI_SWR_REGION` | 华为云 SWR 区域 | 默认：`cn-east-3` |
-| `HUAWEI_SWR_NAMESPACE` | 华为云 SWR 命名空间 | 默认：`ui_beam-images` |
+| `WEBHOOK_SECRET` | Webhook 验证密钥 | 随机生成，至少 32 位<br>**⚠️ 需要同步配置到 GitHub Secrets 中** |
 
 <details>
 <summary>💡 企业微信 API 反代配置（视情况而定）</summary>

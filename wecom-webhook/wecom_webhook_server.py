@@ -35,8 +35,6 @@ WECOM_API_BASE = os.environ.get('WECOM_API_BASE', 'https://qyapi.weixin.qq.com')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 GITHUB_REPO = os.environ.get('GITHUB_REPO', '')  # 格式: owner/repo
 WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')  # Webhook 验证密钥
-HUAWEI_SWR_REGION = os.environ.get('HUAWEI_SWR_REGION', 'cn-east-3')  # 华为云 SWR 区域
-HUAWEI_SWR_NAMESPACE = os.environ.get('HUAWEI_SWR_NAMESPACE', 'ui_beam-images')  # 华为云 SWR 命名空间
 
 # 验证必需的环境变量
 required_vars = [WECOM_TOKEN, WECOM_ENCODING_AES_KEY, WECOM_CORP_ID, WECOM_AGENT_ID, WECOM_SECRET, GITHUB_TOKEN, GITHUB_REPO, WEBHOOK_SECRET]
