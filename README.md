@@ -401,21 +401,17 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 #### 2. Docker 镜像构建工作流（`build-docker-image.yml`）
 - **触发条件**: 
   - 推送代码到 `main`/`master` 分支（`wecom-webhook/` 目录有变化）
-  - 手动触发（可指定镜像标签）
+  - 每天北京时间 0:00 和 12:00 定时构建
+  - 手动触发
 - **功能**:
   - 自动构建企业微信服务器 Docker 镜像
-  - 推送镜像到华为云 SWR
+  - 推送镜像到华为云 SWR（`latest` 标签）
   - 自动设置镜像仓库为公开
-  - 支持多标签（commit SHA + latest）
   - 使用 GitHub Actions 缓存加速构建
 
 **使用预构建镜像**：
 ```bash
-# 拉取最新镜像
 docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
-
-# 使用特定版本
-docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:abc1234
 ```
 
 ### 技术优势

@@ -21,11 +21,6 @@ on:
   - cron: '0 16 * * *'   # UTC 16:00 = 北京时间 0:00（第二天）
   - cron: '0 4 * * *'    # UTC 4:00 = 北京时间 12:00
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Docker image tag'
-        required: false
-        default: 'latest'
 
 env:
   IMAGE_NAME: wecom-webhook-server
@@ -52,23 +47,13 @@ jobs:
       - name: Extract metadata
         id: meta
         run: |
-          # 生成版本标签
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ github.event.inputs.tag }}"
-          else
-            # 使用 commit SHA 的前 7 位作为标签
-            TAG="${GITHUB_SHA::7}"
-          fi
-          
           # 设置镜像完整路径
           IMAGE_FULL_NAME="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${IMAGE_NAME}"
           
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
           echo "image=${IMAGE_FULL_NAME}" >> $GITHUB_OUTPUT
-          echo "version=${TAG}" >> $GITHUB_OUTPUT
           
           # 输出信息
-          echo "Building image: ${IMAGE_FULL_NAME}:${TAG}"
+          echo "Building image: ${IMAGE_FULL_NAME}:latest"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -79,9 +64,7 @@ jobs:
           platforms: linux/amd64
           provenance: false
           sbom: false
-          tags: |
-            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.image }}:latest
+          tags: ${{ steps.meta.outputs.image }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: |
@@ -142,13 +125,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 镜像信息" >> $GITHUB_STEP_SUMMARY
           echo "- **镜像名称**: \`${{ steps.meta.outputs.image }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **标签**: \`${{ steps.meta.outputs.tag }}\`, \`latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **标签**: \`latest\`" >> $GITHUB_STEP_SUMMARY
           echo "- **提交 SHA**: \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🚀 使用方式" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# 或使用 latest 标签" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ steps.meta.outputs.image }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
