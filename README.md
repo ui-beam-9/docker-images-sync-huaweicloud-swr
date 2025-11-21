@@ -79,8 +79,7 @@ WECOM_AGENT_ID=1000002                    # 应用 ID
 WECOM_SECRET=your_app_secret_here         # 应用密钥
 WECOM_TOKEN=your_random_token             # 接收消息 Token（自定义，至少 32 位）
 WECOM_ENCODING_AES_KEY=your_aes_key       # 加解密密钥（43 位）
-WECOM_API_BASE=https://api-work-weixin.ui-beam.com  # API 反代地址
-
+WECOM_API_BASE=https://qyapi.weixin.qq.com  # 企业微信 API 地址（动态IP需反代，参考配置说明）
 
 # GitHub 配置
 GITHUB_TOKEN=ghp_xxxxx                    # GitHub Personal Access Token
@@ -96,11 +95,79 @@ GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo�
 | `WECOM_SECRET` | 应用密钥 | 应用详情页面 → Secret（点击查看）|
 | `WECOM_TOKEN` | 接收消息 Token | 自定义字符串，至少 32 位 |
 | `WECOM_ENCODING_AES_KEY` | 加解密密钥 | 随机生成，43 位字符 |
-| `WECOM_API_BASE` | API 反代地址 | `https://api-work-weixin.ui-beam.com`（反代 `https://qyapi.weixin.qq.com`）|
+| `WECOM_API_BASE` | 企业微信 API 地址 | 默认：`https://qyapi.weixin.qq.com`<br>动态 IP 服务器需配置反代（见下文） |
 | `GITHUB_TOKEN` | GitHub Token | [GitHub Settings](https://github.com/settings/tokens)，需要 `repo` 权限 |
 | `GITHUB_REPO` | 仓库名称 | 格式：`owner/repo` |
 
-**步骤 2：启动服务**
+<details>
+<summary>💡 企业微信 API 反代配置（视情况而定）</summary>
+
+企业微信有**企业可信 IP** 配置，只有在可信 IP 列表中的服务器才能调用企业微信 API。
+
+**是否需要反代取决于服务器 IP 类型：**
+
+| 服务器 IP 类型 | 是否需要反代 | 说明 |
+|--------------|------------|------|
+| 🔄 动态公网 IP | ✅ **需要** | IP 会变化，无法固定添加到可信 IP 列表，必须通过反代服务器 |
+| 📍 固定公网 IP | ❌ **不需要** | 直接将服务器 IP 添加到可信 IP 列表，使用官方地址即可 |
+| 🏠 内网 IP / NAT | ✅ **需要** | 无固定公网 IP，必须通过反代服务器 |
+
+**如何配置反代：**
+
+**Nginx 反代配置：**
+
+```nginx
+location ^~ / {
+    proxy_pass https://qyapi.weixin.qq.com; 
+    proxy_set_header Host qyapi.weixin.qq.com; 
+    proxy_set_header X-Real-IP $remote_addr; 
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; 
+    proxy_set_header REMOTE-HOST $remote_addr; 
+    proxy_set_header Upgrade $http_upgrade; 
+    proxy_set_header Connection $http_connection; 
+    proxy_set_header X-Forwarded-Proto $scheme; 
+    proxy_http_version 1.1; 
+    add_header X-Cache $upstream_cache_status; 
+    add_header Cache-Control no-cache; 
+    proxy_ssl_server_name off; 
+    proxy_ssl_name $proxy_host; 
+    add_header Strict-Transport-Security "max-age=31536000"; 
+}
+```
+
+**配置步骤：**
+1. 准备一台**具有固定公网 IP** 的服务器用作反代
+2. 在该服务器上配置上述 Nginx 反代
+3. 在企业微信管理后台将该反代服务器的 IP 添加到**企业可信 IP**列表
+4. 将 `.env` 中的 `WECOM_API_BASE` 修改为你的反代地址（如：`https://wecom-api.yourdomain.com`）
+
+**如果你的 Webhook 服务器有固定公网 IP：**
+1. 直接将 Webhook 服务器 IP 添加到企业微信**企业可信 IP**列表
+2. `.env` 中的 `WECOM_API_BASE` 使用官方地址 `https://qyapi.weixin.qq.com` 即可
+
+</details>
+
+**步骤 2：部署服务**
+
+可以选择以下任意一种方式部署：
+
+#### 🚀 快速部署
+
+使用一键部署脚本：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ui-beam-9/docker-images-sync-huaweicloud-swr/main/quick-deploy.sh)
+```
+
+脚本功能：
+- ✅ 自动检测 Docker 和 Docker Compose
+- ✅ 支持自定义安装目录（默认 `/opt/wecom-webhook`）
+- ✅ 自动检测权限，需要时提示使用 sudo
+- ✅ 两种部署方式可选：Docker 镜像部署 或 服务器直接部署
+
+> � 脚本源码：[quick-deploy.sh](./quick-deploy.sh)
+
+#### 🔧 手动部署
 
 **方式一：Docker 镜像部署（推荐）**
 
@@ -161,8 +228,9 @@ docker-compose logs -f
 4. 点击 **保存**，看到 ✅ 验证成功即可
 
 **注意**：
-- `api-work-weixin.ui-beam.com` 是企业微信 API 的反代地址，用于调用企业微信 API
 - Webhook 服务器需要部署在有公网访问的服务器上
+- 如果服务器是动态公网 IP，需要配置反代服务（参考上方配置说明）
+- 如果服务器是固定公网 IP，直接将 IP 添加到企业微信可信 IP 列表即可
 
 ### 3️⃣ 查询已同步镜像
 
@@ -389,7 +457,7 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 
 **说明**：
 - **Webhook 服务器**：需要部署在公网可访问的服务器上
-- **企业微信 API 反代**：`api-work-weixin.ui-beam.com` 反代 `qyapi.weixin.qq.com`
+- **企业微信 API**：固定 IP 直接加入可信列表，动态 IP 需通过反代访问
 - **消息通知**：Issue 创建后立即发送，用户实时收到反馈
 
 ### 依赖包
