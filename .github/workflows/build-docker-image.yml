@@ -76,6 +76,9 @@ jobs:
           context: ./wecom-webhook
           file: ./wecom-webhook/Dockerfile
           push: true
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
             ${{ steps.meta.outputs.image }}:latest
