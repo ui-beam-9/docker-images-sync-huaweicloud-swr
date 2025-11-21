@@ -102,40 +102,52 @@ GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo�
 
 **步骤 2：启动服务**
 
-**方式一：使用预构建的 Docker 镜像（推荐）**
+**方式一：Docker 镜像部署（推荐）**
 
-项目已配置自动构建 Docker 镜像并推送到华为云 SWR，可以直接使用：
-
-```bash
-# 拉取最新镜像
-docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
-
-# 运行容器
-docker run -d \
-  --name wecom-webhook \
-  -p 8080:8080 \
-  --env-file .env \
-  swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
-
-# 查看日志
-docker logs -f wecom-webhook
-```
-
-**方式二：本地构建并启动**
+无需下载项目代码，只需下载配置文件：
 
 ```bash
-# 使用启动脚本（推荐）
-chmod +x start.sh
-./start.sh
+# 1. 创建部署目录
+mkdir wecom-webhook && cd wecom-webhook
 
-# 或使用 Docker Compose
+# 2. 下载配置文件
+curl -O https://raw.githubusercontent.com/ui-beam-9/docker-images-sync-huaweicloud-swr/main/wecom-webhook/.env.example
+curl -O https://raw.githubusercontent.com/ui-beam-9/docker-images-sync-huaweicloud-swr/main/wecom-webhook/docker-compose.yml
+mv .env.example .env
+
+# 3. 编辑 .env 文件，填写你的实际配置
+nano .env
+
+# 4. 启动服务（会自动拉取预构建镜像）
 docker-compose up -d
 
-# 查看日志
+# 5. 查看日志
 docker-compose logs -f
+```
 
-# 健康检查
-curl http://localhost:8080/health
+**方式二：服务器直接部署（自定义代码）**
+
+适合需要修改代码的场景：
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/ui-beam-9/docker-images-sync-huaweicloud-swr.git
+cd docker-images-sync-huaweicloud-swr/wecom-webhook
+
+# 2. 配置环境变量
+cp .env.example .env
+nano .env  # 填写你的配置
+
+# 3. 修改 docker-compose.yml 使用本地构建
+nano docker-compose.yml
+# 注释掉: image: swr.cn-east-3.myhuaweicloud.com/ui_beam-images/wecom-webhook-server:latest
+# 取消注释: # build: .
+
+# 4. 启动服务
+docker-compose up -d
+
+# 5. 查看日志
+docker-compose logs -f
 ```
 
 **步骤 3：配置企业微信应用**
@@ -411,7 +423,7 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 
 **使用预构建镜像**：
 ```bash
-docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/wecom-webhook-server:latest
+docker pull swr.cn-east-3.myhuaweicloud.com/ui_beam-images/wecom-webhook-server:latest
 ```
 
 ### 技术优势

@@ -2,28 +2,18 @@ version: '3.8'
 
 services:
   wecom-webhook:
-    build: .
+    # 使用预构建镜像（推荐）
+    image: swr.cn-east-3.myhuaweicloud.com/ui_beam-images/wecom-webhook-server:latest
+    
+    # 本地构建（如需自定义代码，取消下面的注释，并注释掉上面的 image）
+    # build: .
+    
     container_name: wecom-webhook-server
     restart: unless-stopped
     ports:
       - "8080:8080"
-    environment:
-      # 企业微信配置
-      - WECOM_CORP_ID=${WECOM_CORP_ID}
-      - WECOM_AGENT_ID=${WECOM_AGENT_ID}
-      - WECOM_SECRET=${WECOM_SECRET}
-      - WECOM_TOKEN=${WECOM_TOKEN}
-      - WECOM_ENCODING_AES_KEY=${WECOM_ENCODING_AES_KEY}
-      - WECOM_API_BASE=${WECOM_API_BASE:-https://api-work-weixin.ui-beam.com}
-      
-      # GitHub 配置
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - GITHUB_REPO=${GITHUB_REPO}
-      
-      # 服务器配置
-      - PORT=8080
     
-    # 使用 .env 文件加载环境变量
+    # 从 .env 文件加载所有环境变量
     env_file:
       - .env
     
