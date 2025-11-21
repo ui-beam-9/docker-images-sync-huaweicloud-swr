@@ -79,7 +79,7 @@ WECOM_AGENT_ID=1000002                    # 应用 ID
 WECOM_SECRET=your_app_secret_here         # 应用密钥
 WECOM_TOKEN=your_random_token             # 接收消息 Token（自定义，至少 32 位）
 WECOM_ENCODING_AES_KEY=your_aes_key       # 加解密密钥（43 位）
-WECOM_API_BASE=https://qyapi.weixin.qq.com  # 企业微信 API 地址（动态IP需反代，参考配置说明）
+WECOM_API_BASE=https://qyapi.weixin.qq.com  # 企业微信 API 地址（动态IP需用固定IP服务器反代）
 
 # GitHub 配置
 GITHUB_TOKEN=ghp_xxxxx                    # GitHub Personal Access Token
@@ -95,7 +95,7 @@ GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo�
 | `WECOM_SECRET` | 应用密钥 | 应用详情页面 → Secret（点击查看）|
 | `WECOM_TOKEN` | 接收消息 Token | 自定义字符串，至少 32 位 |
 | `WECOM_ENCODING_AES_KEY` | 加解密密钥 | 随机生成，43 位字符 |
-| `WECOM_API_BASE` | 企业微信 API 地址 | 默认：`https://qyapi.weixin.qq.com`<br>动态 IP 服务器需配置反代（见下文） |
+| `WECOM_API_BASE` | 企业微信 API 地址 | 默认：`https://qyapi.weixin.qq.com`<br>动态 IP 需用固定IP服务器做反代（见下文） |
 | `GITHUB_TOKEN` | GitHub Token | [GitHub Settings](https://github.com/settings/tokens)，需要 `repo` 权限 |
 | `GITHUB_REPO` | 仓库名称 | 格式：`owner/repo` |
 
@@ -108,9 +108,9 @@ GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo�
 
 | 服务器 IP 类型 | 是否需要反代 | 说明 |
 |--------------|------------|------|
-| 🔄 动态公网 IP | ✅ **需要** | IP 会变化，无法固定添加到可信 IP 列表，必须通过反代服务器 |
+| 🔄 动态公网 IP | ✅ **需要** | IP 会变化，无法固定添加到可信 IP 列表，需要一台固定公网IP的服务器做反代 |
 | 📍 固定公网 IP | ❌ **不需要** | 直接将服务器 IP 添加到可信 IP 列表，使用官方地址即可 |
-| 🏠 内网 IP / NAT | ✅ **需要** | 无固定公网 IP，必须通过反代服务器 |
+| 🏠 内网 IP / NAT | ✅ **需要** | 无固定公网 IP，需要一台固定公网IP的服务器做反代 |
 
 **如何配置反代：**
 
@@ -229,7 +229,7 @@ docker-compose logs -f
 
 **注意**：
 - Webhook 服务器需要部署在有公网访问的服务器上
-- 如果服务器是动态公网 IP，需要配置反代服务（参考上方配置说明）
+- 如果服务器是动态公网 IP，需要一台固定公网IP的服务器做反代（参考上方配置说明）
 - 如果服务器是固定公网 IP，直接将 IP 添加到企业微信可信 IP 列表即可
 
 ### 3️⃣ 查询已同步镜像
@@ -456,8 +456,8 @@ docker pull swr.cn-east-3.myhuaweicloud.com/your-namespace/prometheus/node-expor
 ```
 
 **说明**：
-- **Webhook 服务器**：需要部署在公网可访问的服务器上
-- **企业微信 API**：固定 IP 直接加入可信列表，动态 IP 需通过反代访问
+- **Webhook 服务器**：需要部署在有公网访问的服务器上
+- **企业微信 API**：固定 IP 直接加入可信列表，动态 IP 需用固定IP服务器做反代
 - **消息通知**：Issue 创建后立即发送，用户实时收到反馈
 
 ### 依赖包
