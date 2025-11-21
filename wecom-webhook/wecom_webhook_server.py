@@ -31,12 +31,15 @@ WECOM_ENCODING_AES_KEY = os.environ.get('WECOM_ENCODING_AES_KEY', '')
 WECOM_CORP_ID = os.environ.get('WECOM_CORP_ID', '')
 WECOM_AGENT_ID = os.environ.get('WECOM_AGENT_ID', '')
 WECOM_SECRET = os.environ.get('WECOM_SECRET', '')
-WECOM_API_BASE = os.environ.get('WECOM_API_BASE', 'https://api-work-weixin.ui-beam.com')  # 企业微信 API 反代地址
+WECOM_API_BASE = os.environ.get('WECOM_API_BASE', 'https://qyapi.weixin.qq.com')  # 企业微信 API 地址
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
 GITHUB_REPO = os.environ.get('GITHUB_REPO', '')  # 格式: owner/repo
+WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')  # Webhook 验证密钥
+HUAWEI_SWR_REGION = os.environ.get('HUAWEI_SWR_REGION', 'cn-east-3')  # 华为云 SWR 区域
+HUAWEI_SWR_NAMESPACE = os.environ.get('HUAWEI_SWR_NAMESPACE', 'ui_beam-images')  # 华为云 SWR 命名空间
 
 # 验证必需的环境变量
-required_vars = [WECOM_TOKEN, WECOM_ENCODING_AES_KEY, WECOM_CORP_ID, WECOM_AGENT_ID, WECOM_SECRET, GITHUB_TOKEN, GITHUB_REPO]
+required_vars = [WECOM_TOKEN, WECOM_ENCODING_AES_KEY, WECOM_CORP_ID, WECOM_AGENT_ID, WECOM_SECRET, GITHUB_TOKEN, GITHUB_REPO, WEBHOOK_SECRET]
 if not all(required_vars):
     logger.error("缺少必需的环境变量！")
     logger.error(f"WECOM_TOKEN: {'已设置' if WECOM_TOKEN else '未设置'}")
@@ -46,6 +49,7 @@ if not all(required_vars):
     logger.error(f"WECOM_SECRET: {'已设置' if WECOM_SECRET else '未设置'}")
     logger.error(f"GITHUB_TOKEN: {'已设置' if GITHUB_TOKEN else '未设置'}")
     logger.error(f"GITHUB_REPO: {'已设置' if GITHUB_REPO else '未设置'}")
+    logger.error(f"WEBHOOK_SECRET: {'已设置' if WEBHOOK_SECRET else '未设置'}")
 
 # 初始化消息加解密类
 wxcpt = WXBizMsgCrypt(WECOM_TOKEN, WECOM_ENCODING_AES_KEY, WECOM_CORP_ID)
@@ -194,11 +198,11 @@ def create_github_issue(image_name, user_id=None):
             "Content-Type": "application/json"
         }
         
-        # Issue 数据
+        # Issue 数据（将用户ID保存到body中，用于后续通知）
         issue_data = {
             "title": image_name,
             "labels": ["sync image"],
-            "body": f"📦 来自企业微信的镜像同步请求\n\n镜像名称: `{image_name}`\n\n提交时间: {time.strftime('%Y-%m-%d %H:%M:%S')}"
+            "body": f"📦 来自企业微信的镜像同步请求\n\n镜像名称: `{image_name}`\n提交时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n---\n<!-- wecom_user_id: {user_id} -->"
         }
         
         # 发送请求
@@ -255,6 +259,38 @@ def extract_image_name(content):
         logger.warning(f"⚠️ 消息内容可能不是有效的镜像名称: {content}")
     
     return content
+
+
+def get_user_id_from_issue(issue_number):
+    """从 Issue body 中提取用户 ID"""
+    try:
+        api_url = f"https://api.github.com/repos/{GITHUB_REPO}/issues/{issue_number}"
+        headers = {
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json"
+        }
+        
+        response = requests.get(api_url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            issue_data = response.json()
+            body = issue_data.get('body', '')
+            
+            # 从 body 中提取用户 ID
+            import re
+            match = re.search(r'<!-- wecom_user_id: (\S+) -->', body)
+            if match:
+                user_id = match.group(1)
+                logger.info(f"从 Issue #{issue_number} 提取到用户 ID: {user_id}")
+                return user_id
+            else:
+                logger.warning(f"Issue #{issue_number} 中未找到用户 ID")
+                return None
+        else:
+            logger.error(f"获取 Issue 失败: {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"提取用户 ID 异常: {str(e)}")
+        return None
 
 
 @app.route('/wecom/callback', methods=['GET', 'POST'])
@@ -334,6 +370,93 @@ def wecom_callback():
     except Exception as e:
         logger.error(f"❌ 处理回调异常: {str(e)}", exc_info=True)
         return "服务器错误", 500
+
+
+@app.route('/api/notify', methods=['POST'])
+def notify_status():
+    """
+    接收 GitHub Actions 的状态通知并转发到企业微信
+    请求格式：
+    {
+        "secret": "webhook_secret",
+        "issue_number": 123,
+        "status": "syncing|success|failure",
+        "image_name": "docker.io/library/nginx:latest",
+        "target_image": "swr.cn-east-3.myhuaweicloud.com/ui_beam-images/nginx:latest",
+        "error_message": "错误信息（可选）",
+        "logs_url": "日志URL（可选）"
+    }
+    """
+    try:
+        # 验证 secret
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request"}), 400
+        
+        secret = data.get('secret', '')
+        if secret != WEBHOOK_SECRET:
+            logger.warning(f"⚠️ 无效的 webhook secret")
+            return jsonify({"error": "Invalid secret"}), 403
+        
+        issue_number = data.get('issue_number')
+        status = data.get('status')
+        image_name = data.get('image_name', '')
+        target_image = data.get('target_image', '')
+        error_message = data.get('error_message', '')
+        logs_url = data.get('logs_url', '')
+        
+        if not issue_number or not status:
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        # 从 Issue 中获取用户 ID
+        user_id = get_user_id_from_issue(issue_number)
+        if not user_id:
+            logger.warning(f"⚠️ 无法获取 Issue #{issue_number} 的用户 ID，跳过通知")
+            return jsonify({"error": "User ID not found"}), 404
+        
+        # 根据状态发送不同的通知
+        if status == 'syncing':
+            # 同步中
+            message = f"🔄 镜像正在同步中\n\n" \
+                     f"镜像: {image_name}\n" \
+                     f"Issue: #{issue_number}\n" \
+                     f"进度: 正在处理..."
+        
+        elif status == 'success':
+            # 同步成功
+            message = f"✅ 镜像同步成功\n\n" \
+                     f"镜像: {image_name}\n" \
+                     f"Issue: #{issue_number}\n\n" \
+                     f"📦 快捷命令：\n" \
+                     f"docker pull {target_image}\n\n" \
+                     f"查看详情: https://github.com/{GITHUB_REPO}/issues/{issue_number}"
+        
+        elif status == 'failure':
+            # 同步失败
+            message = f"❌ 镜像同步失败\n\n" \
+                     f"镜像: {image_name}\n" \
+                     f"Issue: #{issue_number}\n\n" \
+                     f"失败原因: {error_message or '未知错误'}\n\n"
+            
+            if logs_url:
+                message += f"查看日志: {logs_url}"
+        
+        else:
+            return jsonify({"error": "Invalid status"}), 400
+        
+        # 发送企业微信通知
+        success = send_wecom_message(user_id, message)
+        
+        if success:
+            logger.info(f"✅ 成功发送状态通知: {status} for Issue #{issue_number}")
+            return jsonify({"success": True, "message": "Notification sent"}), 200
+        else:
+            logger.error(f"❌ 发送状态通知失败: {status} for Issue #{issue_number}")
+            return jsonify({"success": False, "message": "Failed to send notification"}), 500
+    
+    except Exception as e:
+        logger.error(f"❌ 处理通知请求异常: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @app.route('/health', methods=['GET'])

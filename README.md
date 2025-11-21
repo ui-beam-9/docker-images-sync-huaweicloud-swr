@@ -47,15 +47,51 @@
    docker.io/library/nginx:latest
    ```
 3. 服务器自动创建 GitHub Issue 并触发同步
-4. 收到企业微信通知消息：
+4. 收到实时状态通知：
+
+   **① 任务创建**
    ```
    ✅ 镜像同步任务已创建
    
-   镜像名称: docker.io/library/nginx:latest
-   Issue 编号: #123
+   镜像: docker.io/library/nginx:latest
+   Issue: #123
    状态: 等待同步
    
    查看详情: https://github.com/...
+   ```
+
+   **② 同步中**
+   ```
+   🔄 镜像正在同步中
+   
+   镜像: docker.io/library/nginx:latest
+   Issue: #123
+   进度: 正在处理...
+   ```
+
+   **③ 同步成功**
+   ```
+   ✅ 镜像同步成功
+   
+   镜像: docker.io/library/nginx:latest
+   Issue: #123
+   
+   📦 快捷命令：
+   docker pull swr.cn-east-3.myhuaweicloud.com/ui_beam-images/nginx:latest
+   
+   查看详情: https://github.com/...
+   ```
+
+   **④ 同步失败**（如有）
+   ```
+   ❌ 镜像同步失败
+   
+   镜像: docker.io/library/nginx:latest
+   Issue: #123
+   
+   失败原因: 镜像不存在或网络超时
+   
+   查看日志: https://github.com/.../actions/runs/...
    ```
 
 #### 部署企业微信服务器
@@ -84,6 +120,13 @@ WECOM_API_BASE=https://qyapi.weixin.qq.com  # 企业微信 API 地址（动态IP
 # GitHub 配置
 GITHUB_TOKEN=ghp_xxxxx                    # GitHub Personal Access Token
 GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo）
+
+# Webhook 配置
+WEBHOOK_SECRET=your_webhook_secret        # Webhook 验证密钥（需与 GitHub Secrets 中配置一致）
+
+# 华为云 SWR 配置
+HUAWEI_SWR_REGION=cn-east-3              # 华为云 SWR 区域
+HUAWEI_SWR_NAMESPACE=ui_beam-images      # 华为云 SWR 命名空间
 ```
 
 **配置说明**：
@@ -98,6 +141,9 @@ GITHUB_REPO=owner/repo                    # 仓库名称（格式：owner/repo�
 | `WECOM_API_BASE` | 企业微信 API 地址 | 默认：`https://qyapi.weixin.qq.com`<br>动态 IP 需用固定IP服务器做反代（见下文） |
 | `GITHUB_TOKEN` | GitHub Token | [GitHub Settings](https://github.com/settings/tokens)，需要 `repo` 权限 |
 | `GITHUB_REPO` | 仓库名称 | 格式：`owner/repo` |
+| `WEBHOOK_SECRET` | Webhook 验证密钥 | 随机生成，至少 32 位，需与 GitHub Secrets 中配置一致 |
+| `HUAWEI_SWR_REGION` | 华为云 SWR 区域 | 默认：`cn-east-3` |
+| `HUAWEI_SWR_NAMESPACE` | 华为云 SWR 命名空间 | 默认：`ui_beam-images` |
 
 <details>
 <summary>💡 企业微信 API 反代配置（视情况而定）</summary>
@@ -275,9 +321,21 @@ docker-compose logs -f
 2. 总览 → 右上角登录指令
 3. 查看并复制登录密码，建议使用长期有效登录指令
 
+#### 4. 企业微信通知配置（使用企业微信通知时必需）
+
+| Secret 名称 | 说明 | 示例值 |
+|------------|------|--------|
+| `WEBHOOK_URL` | Webhook 服务器地址 | `https://your-webhook-server.com` |
+| `WEBHOOK_SECRET` | Webhook 验证密钥 | 与 `.env` 中的 `WEBHOOK_SECRET` 相同 |
+
+**配置说明**：
+- `WEBHOOK_URL` 是你部署的企业微信 webhook 服务器的公网地址（不包含路径）
+- `WEBHOOK_SECRET` 用于验证 GitHub Actions 调用的合法性，必须与 webhook 服务器的 `.env` 中配置的值一致
+- 该配置用于实现多状态通知功能（同步中、同步成功、同步失败）
+
 ### 可选的 GitHub Secrets
 
-#### 4. 镜像域名去除选项
+#### 5. 镜像域名去除选项
 
 | Secret 名称 | 可选值 | 默认值 | 说明 |
 |------------|--------|--------|------|

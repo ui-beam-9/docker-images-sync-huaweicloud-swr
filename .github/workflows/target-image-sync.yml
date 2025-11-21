@@ -55,6 +55,19 @@ jobs:
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
         gh issue comment ${{ github.event.issue.number }} -b "镜像 ${ORIGIN_IMAGE} 同步中...<br>[详情请查看](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
         gh issue edit ${{ github.event.issue.number }} --add-label "syncing"
+    
+    - name: Send Syncing Notification
+      if: success()
+      run: |
+        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        curl -X POST "${{ secrets.WEBHOOK_URL }}/api/notify" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"secret\": \"${{ secrets.WEBHOOK_SECRET }}\",
+            \"issue_number\": ${{ github.event.issue.number }},
+            \"status\": \"syncing\",
+            \"image_name\": \"${ORIGIN_IMAGE}\"
+          }" || echo "发送企业微信通知失败（不影响同步）"
   
     - name: Login to Huawei SWR
       uses: docker/login-action@v1
@@ -76,6 +89,7 @@ jobs:
       run: |
         pip install huaweicloudsdkcore huaweicloudsdkswr
     - name: Sync Docker Image
+      id: sync-image
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
         REMOVE_DOMAIN="${{ secrets.REMOVE_SOURCE_DOMAIN }}"
@@ -105,6 +119,9 @@ jobs:
         echo "  源镜像: ${ORIGIN_IMAGE}"
         echo "  目标镜像: ${TARGET_IMAGE}"
         
+        # 输出目标镜像地址供后续步骤使用
+        echo "target_image=${TARGET_IMAGE}" >> $GITHUB_OUTPUT
+        
         # 使用 skopeo 直接复制镜像（推荐方式，更快且不占用本地空间）
         skopeo copy docker://${ORIGIN_IMAGE} docker://${TARGET_IMAGE}
         
@@ -124,22 +141,10 @@ jobs:
         HUAWEI_SWR_NAMESPACE: ${{ secrets.HUAWEI_SWR_NAMESPACE }}
         REPOSITORY: ${{ steps.get-image.outputs.image }}
       run: |
-        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
-        REMOVE_DOMAIN="${{ secrets.REMOVE_SOURCE_DOMAIN }}"
+        TARGET_IMAGE="${{ steps.sync-image.outputs.target_image }}"
         
-        # 根据配置决定是否去除源镜像的域名部分（与同步步骤逻辑一致）
-        if [[ "${REMOVE_DOMAIN}" == "true" ]]; then
-          if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
-            IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
-          else
-            IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
-          fi
-        else
-          IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
-        fi
-        
-        # 去除标签，获取仓库路径
-        REPO_PATH=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
+        # 从目标镜像中提取仓库路径（去除域名和标签）
+        REPO_PATH=$(echo ${TARGET_IMAGE} | sed 's|^[^/]*/[^/]*/||' | sed 's/\(.*\):.*/\1/')
         
         echo "设置仓库为公开: ${REPO_PATH}"
         export REPOSITORY=${REPO_PATH}
@@ -161,24 +166,10 @@ jobs:
         REPOSITORY: ${{ steps.get-image.outputs.image }}
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
-        REMOVE_DOMAIN="${{ secrets.REMOVE_SOURCE_DOMAIN }}"
+        TARGET_IMAGE="${{ steps.sync-image.outputs.target_image }}"
         
-        # 根据配置决定是否去除源镜像的域名部分（与同步步骤逻辑一致）
-        if [[ "${REMOVE_DOMAIN}" == "true" ]]; then
-          if [[ ${ORIGIN_IMAGE} =~ ^[^/]*\.[^/]*/ ]]; then
-            IMAGE_WITHOUT_DOMAIN=$(echo ${ORIGIN_IMAGE} | sed 's|^[^/]*/||')
-          else
-            IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
-          fi
-        else
-          IMAGE_WITHOUT_DOMAIN=${ORIGIN_IMAGE}
-        fi
-        
-        # 去除标签，获取仓库路径
-        REPO_PATH=$(echo ${IMAGE_WITHOUT_DOMAIN} | sed 's/\(.*\):.*/\1/')
-        
-        SWR_REGISTRY="swr.${{ secrets.HUAWEI_SWR_REGION }}.myhuaweicloud.com"
-        TARGET_IMAGE="${SWR_REGISTRY}/${{ secrets.HUAWEI_SWR_NAMESPACE }}/${IMAGE_WITHOUT_DOMAIN}"
+        # 从目标镜像中提取仓库路径（去除域名和标签）
+        REPO_PATH=$(echo ${TARGET_IMAGE} | sed 's|^[^/]*/[^/]*/||' | sed 's/\(.*\):.*/\1/')
         
         echo "验证仓库是否为公开: ${REPO_PATH}"
         export REPOSITORY=${REPO_PATH}
@@ -194,6 +185,22 @@ jobs:
           echo "验证失败: 仓库未设置为公开"
           exit 1
         fi
+    
+    - name: Send Success Notification
+      if: success()
+      run: |
+        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        TARGET_IMAGE="${{ steps.sync-image.outputs.target_image }}"
+        
+        curl -X POST "${{ secrets.WEBHOOK_URL }}/api/notify" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"secret\": \"${{ secrets.WEBHOOK_SECRET }}\",
+            \"issue_number\": ${{ github.event.issue.number }},
+            \"status\": \"success\",
+            \"image_name\": \"${ORIGIN_IMAGE}\",
+            \"target_image\": \"${TARGET_IMAGE}\"
+          }" || echo "发送企业微信通知失败（不影响同步）"
     - name: Fail Sync
       if: failure()
       run: |
@@ -202,3 +209,20 @@ jobs:
         gh issue edit ${{ github.event.issue.number }} --remove-label "syncing"
         gh issue edit ${{ github.event.issue.number }} --add-label "sync image failure" -b "IMAGE SYNC"
         gh issue close ${{ github.event.issue.number }} --reason "not planned"
+    
+    - name: Send Failure Notification
+      if: failure()
+      run: |
+        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        LOGS_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        
+        curl -X POST "${{ secrets.WEBHOOK_URL }}/api/notify" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"secret\": \"${{ secrets.WEBHOOK_SECRET }}\",
+            \"issue_number\": ${{ github.event.issue.number }},
+            \"status\": \"failure\",
+            \"image_name\": \"${ORIGIN_IMAGE}\",
+            \"error_message\": \"镜像同步失败，请检查镜像是否存在\",
+            \"logs_url\": \"${LOGS_URL}\"
+          }" || echo "发送企业微信通知失败"
