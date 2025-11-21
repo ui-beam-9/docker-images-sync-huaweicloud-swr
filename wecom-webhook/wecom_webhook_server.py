@@ -418,7 +418,7 @@ def notify_status():
             message = f"🔄 镜像正在同步中\n\n" \
                      f"镜像: {image_name}\n" \
                      f"Issue: #{issue_number}\n" \
-                     f"进度: 正在处理..."
+                     f"进度: 正在同步..."
         
         elif status == 'success':
             # 同步成功

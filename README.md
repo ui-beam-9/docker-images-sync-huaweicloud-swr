@@ -66,7 +66,7 @@
    
    镜像: docker.io/library/nginx:latest
    Issue: #123
-   进度: 正在处理...
+   进度: 正在同步...
    ```
 
    **③ 同步成功**
