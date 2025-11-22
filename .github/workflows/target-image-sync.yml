@@ -218,7 +218,7 @@ jobs:
         
         # 根据失败步骤判断错误原因
         if [[ "${{ steps.sync-image.outcome }}" == "failure" ]]; then
-          ERROR_MSG="镜像同步失败，可能原因：1) 源镜像不存在 2) 源镜像仓库无法访问 3) 网络超时"
+          ERROR_MSG="镜像同步失败，可能原因：①源镜像不存在 ②源镜像仓库无法访问 ③网络超时"
         elif [[ "${{ steps.set-public.outcome }}" == "failure" ]]; then
           ERROR_MSG="设置仓库为公开失败，请检查华为云 AK/SK 权限配置"
         elif [[ "${{ steps.verify-public.outcome }}" == "failure" ]]; then
