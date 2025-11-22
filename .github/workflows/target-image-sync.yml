@@ -177,11 +177,9 @@ jobs:
         
         if [ $? -eq 0 ]; then
           echo "验证成功: 仓库已设置为公开"
-          gh issue comment ${{ github.event.issue.number }} -b "$(echo -e "\n镜像 \`${ORIGIN_IMAGE}\` 同步完成<br>请使用 \`${TARGET_IMAGE}\` 替代源镜像<br> <h1>快捷命令</h1>\n\`\`\`sh\n# Docker 拉取命令\ndocker pull ${TARGET_IMAGE}\ndocker tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Containerd 拉取命令\nctr images pull ${TARGET_IMAGE}\nctr images tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Shell 快速替换命令\nsed -i \"s#${ORIGIN_IMAGE}#${TARGET_IMAGE}#g\" 你的文件名\n\`\`\`\n")"
-          gh issue edit ${{ github.event.issue.number }} --remove-label "syncing"
-          gh issue edit ${{ github.event.issue.number }} --add-label "sync image succeeded" -b "IMAGE SYNC"
-          gh issue close ${{ github.event.issue.number }} --reason "completed"
-        else
+
+
+
           echo "验证失败: 仓库未设置为公开"
           exit 1
         fi
@@ -201,15 +199,17 @@ jobs:
             \"image_name\": \"${ORIGIN_IMAGE}\",
             \"target_image\": \"${TARGET_IMAGE}\"
           }" || echo "发送企业微信通知失败（不影响同步）"
-    - name: Fail Sync
-      if: failure()
+    
+    - name: Close Success Issue
+      if: success()
       run: |
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
-        gh issue comment ${{ github.event.issue.number }} -b "镜像 ${ORIGIN_IMAGE} 同步失败[详情请查看](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})<br>请检查 image 是否存在, [查看成功例子](https://github.com/kubesre/docker-registry-mirrors/issues/13)<br>如果需要同步, 请重新提交正确的issue"
+        TARGET_IMAGE="${{ steps.sync-image.outputs.target_image }}"
+        
+        gh issue comment ${{ github.event.issue.number }} -b "$(echo -e "\n镜像 \`${ORIGIN_IMAGE}\` 同步完成<br>请使用 \`${TARGET_IMAGE}\` 替代源镜像<br> <h1>快捷命令</h1>\n\`\`\`sh\n# Docker 拉取命令\ndocker pull ${TARGET_IMAGE}\ndocker tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Containerd 拉取命令\nctr images pull ${TARGET_IMAGE}\nctr images tag ${TARGET_IMAGE} ${ORIGIN_IMAGE}\n\n# Shell 快速替换命令\nsed -i \"s#${ORIGIN_IMAGE}#${TARGET_IMAGE}#g\" 你的文件名\n\`\`\`\n\")"
         gh issue edit ${{ github.event.issue.number }} --remove-label "syncing"
-        gh issue edit ${{ github.event.issue.number }} --add-label "sync image failure" -b "IMAGE SYNC"
-        gh issue close ${{ github.event.issue.number }} --reason "not planned"
-    
+        gh issue edit ${{ github.event.issue.number }} --add-label "sync image succeeded" -b "IMAGE SYNC"
+        gh issue close ${{ github.event.issue.number }} --reason "completed"
     - name: Send Failure Notification
       if: failure()
       run: |
@@ -226,3 +226,12 @@ jobs:
             \"error_message\": \"镜像同步失败，请检查镜像是否存在\",
             \"logs_url\": \"${LOGS_URL}\"
           }" || echo "发送企业微信通知失败"
+    
+    - name: Close Failure Issue
+      if: failure()
+      run: |
+        ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
+        gh issue comment ${{ github.event.issue.number }} -b "镜像 ${ORIGIN_IMAGE} 同步失败[详情请查看](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})<br>请检查 image 是否存在, [查看成功例子](https://github.com/kubesre/docker-registry-mirrors/issues/13)<br>如果需要同步, 请重新提交正确的issue"
+        gh issue edit ${{ github.event.issue.number }} --remove-label "syncing"
+        gh issue edit ${{ github.event.issue.number }} --add-label "sync image failure" -b "IMAGE SYNC"
+        gh issue close ${{ github.event.issue.number }} --reason "not planned"
