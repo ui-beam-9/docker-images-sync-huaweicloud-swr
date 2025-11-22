@@ -134,6 +134,7 @@ jobs:
         docker pull ${TARGET_IMAGE}
     
     - name: Set Repository to Public
+      id: set-public
       env:
         HUAWEI_CLOUD_ACCESS_KEY: ${{ secrets.HUAWEI_CLOUD_ACCESS_KEY }}
         HUAWEI_CLOUD_SECRET_KEY: ${{ secrets.HUAWEI_CLOUD_SECRET_KEY }}
@@ -158,6 +159,7 @@ jobs:
         fi
     
     - name: Verify Repository is Public
+      id: verify-public
       env:
         HUAWEI_CLOUD_ACCESS_KEY: ${{ secrets.HUAWEI_CLOUD_ACCESS_KEY }}
         HUAWEI_CLOUD_SECRET_KEY: ${{ secrets.HUAWEI_CLOUD_SECRET_KEY }}
@@ -177,9 +179,7 @@ jobs:
         
         if [ $? -eq 0 ]; then
           echo "验证成功: 仓库已设置为公开"
-
-
-
+        else
           echo "验证失败: 仓库未设置为公开"
           exit 1
         fi
@@ -216,6 +216,17 @@ jobs:
         ORIGIN_IMAGE="${{ steps.get-image.outputs.image }}"
         LOGS_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         
+        # 根据失败步骤判断错误原因
+        if [[ "${{ steps.sync-image.outcome }}" == "failure" ]]; then
+          ERROR_MSG="镜像同步失败，可能原因：1) 源镜像不存在 2) 源镜像仓库无法访问 3) 网络超时"
+        elif [[ "${{ steps.set-public.outcome }}" == "failure" ]]; then
+          ERROR_MSG="设置仓库为公开失败，请检查华为云 AK/SK 权限配置"
+        elif [[ "${{ steps.verify-public.outcome }}" == "failure" ]]; then
+          ERROR_MSG="验证仓库公开状态失败，仓库可能未正确设置为公开"
+        else
+          ERROR_MSG="同步过程中发生未知错误，请查看详细日志"
+        fi
+        
         curl -X POST "${{ secrets.WEBHOOK_URL }}/api/notify" \
           -H "Content-Type: application/json" \
           -d "{
@@ -223,7 +234,7 @@ jobs:
             \"issue_number\": ${{ github.event.issue.number }},
             \"status\": \"failure\",
             \"image_name\": \"${ORIGIN_IMAGE}\",
-            \"error_message\": \"镜像同步失败，请检查镜像是否存在\",
+            \"error_message\": \"${ERROR_MSG}\",
             \"logs_url\": \"${LOGS_URL}\"
           }" || echo "发送企业微信通知失败"
     
