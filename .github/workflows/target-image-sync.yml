@@ -150,52 +150,52 @@ jobs:
         
         # 使用内联 Python 脚本设置仓库为公开
         python - <<EOF
-import os
-import sys
-from huaweicloudsdkcore.auth.credentials import BasicCredentials
-from huaweicloudsdkswr.v2.region.swr_region import SwrRegion
-from huaweicloudsdkcore.exceptions import exceptions
-from huaweicloudsdkswr.v2 import SwrClient, UpdateRepoRequest, UpdateRepoRequestBody
-
-# 从环境变量获取配置
-ak = os.environ.get('HUAWEI_CLOUD_ACCESS_KEY')
-sk = os.environ.get('HUAWEI_CLOUD_SECRET_KEY')
-region = os.environ.get('HUAWEI_SWR_REGION')
-namespace = os.environ.get('HUAWEI_SWR_NAMESPACE')
-repository = '${REPO_PATH}'
-
-# 验证环境变量
-if not all([ak, sk, region, namespace, repository]):
-    print('错误: 缺少必需的环境变量')
-    sys.exit(1)
-
-# 创建客户端
-credentials = BasicCredentials(ak, sk)
-client = SwrClient.new_builder() \\
-    .with_credentials(credentials) \\
-    .with_region(SwrRegion.value_of(region)) \\
-    .build()
-
-# 华为云 SWR API 要求：仓库名称中的斜杠需要替换为 $
-repository_encoded = repository.replace('/', '\$')
-if repository != repository_encoded:
-    print(f'仓库名称转换: {repository} -> {repository_encoded}')
-
-try:
-    request = UpdateRepoRequest()
-    request.namespace = namespace
-    request.repository = repository_encoded
-    request.body = UpdateRepoRequestBody(is_public=True)
-    response = client.update_repo(request)
-    print(f'成功: 已将仓库 {namespace}/{repository} 设置为公开')
-    print(response)
-    sys.exit(0)
-except exceptions.ClientRequestException as e:
-    print(f'错误: 设置仓库公开失败')
-    print(f'状态码: {e.status_code}')
-    print(f'错误信息: {e.error_msg}')
-    sys.exit(1)
-EOF
+        import os
+        import sys
+        from huaweicloudsdkcore.auth.credentials import BasicCredentials
+        from huaweicloudsdkswr.v2.region.swr_region import SwrRegion
+        from huaweicloudsdkcore.exceptions import exceptions
+        from huaweicloudsdkswr.v2 import SwrClient, UpdateRepoRequest, UpdateRepoRequestBody
+        
+        # 从环境变量获取配置
+        ak = os.environ.get('HUAWEI_CLOUD_ACCESS_KEY')
+        sk = os.environ.get('HUAWEI_CLOUD_SECRET_KEY')
+        region = os.environ.get('HUAWEI_SWR_REGION')
+        namespace = os.environ.get('HUAWEI_SWR_NAMESPACE')
+        repository = '${REPO_PATH}'
+        
+        # 验证环境变量
+        if not all([ak, sk, region, namespace, repository]):
+            print('错误: 缺少必需的环境变量')
+            sys.exit(1)
+        
+        # 创建客户端
+        credentials = BasicCredentials(ak, sk)
+        client = SwrClient.new_builder() \\
+            .with_credentials(credentials) \\
+            .with_region(SwrRegion.value_of(region)) \\
+            .build()
+        
+        # 华为云 SWR API 要求：仓库名称中的斜杠需要替换为 $
+        repository_encoded = repository.replace('/', '\$')
+        if repository != repository_encoded:
+            print(f'仓库名称转换: {repository} -> {repository_encoded}')
+        
+        try:
+            request = UpdateRepoRequest()
+            request.namespace = namespace
+            request.repository = repository_encoded
+            request.body = UpdateRepoRequestBody(is_public=True)
+            response = client.update_repo(request)
+            print(f'成功: 已将仓库 {namespace}/{repository} 设置为公开')
+            print(response)
+            sys.exit(0)
+        except exceptions.ClientRequestException as e:
+            print(f'错误: 设置仓库公开失败')
+            print(f'状态码: {e.status_code}')
+            print(f'错误信息: {e.error_msg}')
+            sys.exit(1)
+        EOF
     
     - name: Verify Repository is Public
       id: verify-public
@@ -215,60 +215,60 @@ EOF
         
         # 使用内联 Python 脚本验证仓库是否为公开
         python - <<EOF
-import os
-import sys
-from huaweicloudsdkcore.auth.credentials import BasicCredentials
-from huaweicloudsdkswr.v2.region.swr_region import SwrRegion
-from huaweicloudsdkcore.exceptions import exceptions
-from huaweicloudsdkswr.v2 import SwrClient, ShowRepositoryRequest
-
-# 从环境变量获取配置
-ak = os.environ.get('HUAWEI_CLOUD_ACCESS_KEY')
-sk = os.environ.get('HUAWEI_CLOUD_SECRET_KEY')
-region = os.environ.get('HUAWEI_SWR_REGION')
-namespace = os.environ.get('HUAWEI_SWR_NAMESPACE')
-repository = '${REPO_PATH}'
-
-# 验证环境变量
-if not all([ak, sk, region, namespace, repository]):
-    print('错误: 缺少必需的环境变量')
-    sys.exit(1)
-
-# 创建客户端
-credentials = BasicCredentials(ak, sk)
-client = SwrClient.new_builder() \\
-    .with_credentials(credentials) \\
-    .with_region(SwrRegion.value_of(region)) \\
-    .build()
-
-# 华为云 SWR API 要求：仓库名称中的斜杠需要替换为 $
-repository_encoded = repository.replace('/', '\$')
-if repository != repository_encoded:
-    print(f'仓库名称转换: {repository} -> {repository_encoded}')
-
-try:
-    request = ShowRepositoryRequest()
-    request.namespace = namespace
-    request.repository = repository_encoded
-    response = client.show_repository(request)
-    
-    # 检查仓库是否为公开
-    is_public = response.is_public if hasattr(response, 'is_public') else False
-    
-    if is_public:
-        print(f'验证成功: 仓库 {namespace}/{repository} 已设置为公开')
-        print(f'仓库详情: {response}')
-        sys.exit(0)
-    else:
-        print(f'验证失败: 仓库 {namespace}/{repository} 不是公开的')
-        print(f'仓库详情: {response}')
-        sys.exit(1)
-except exceptions.ClientRequestException as e:
-    print(f'错误: 获取仓库信息失败')
-    print(f'状态码: {e.status_code}')
-    print(f'错误信息: {e.error_msg}')
-    sys.exit(1)
-EOF
+        import os
+        import sys
+        from huaweicloudsdkcore.auth.credentials import BasicCredentials
+        from huaweicloudsdkswr.v2.region.swr_region import SwrRegion
+        from huaweicloudsdkcore.exceptions import exceptions
+        from huaweicloudsdkswr.v2 import SwrClient, ShowRepositoryRequest
+        
+        # 从环境变量获取配置
+        ak = os.environ.get('HUAWEI_CLOUD_ACCESS_KEY')
+        sk = os.environ.get('HUAWEI_CLOUD_SECRET_KEY')
+        region = os.environ.get('HUAWEI_SWR_REGION')
+        namespace = os.environ.get('HUAWEI_SWR_NAMESPACE')
+        repository = '${REPO_PATH}'
+        
+        # 验证环境变量
+        if not all([ak, sk, region, namespace, repository]):
+            print('错误: 缺少必需的环境变量')
+            sys.exit(1)
+        
+        # 创建客户端
+        credentials = BasicCredentials(ak, sk)
+        client = SwrClient.new_builder() \\
+            .with_credentials(credentials) \\
+            .with_region(SwrRegion.value_of(region)) \\
+            .build()
+        
+        # 华为云 SWR API 要求：仓库名称中的斜杠需要替换为 $
+        repository_encoded = repository.replace('/', '\$')
+        if repository != repository_encoded:
+            print(f'仓库名称转换: {repository} -> {repository_encoded}')
+        
+        try:
+            request = ShowRepositoryRequest()
+            request.namespace = namespace
+            request.repository = repository_encoded
+            response = client.show_repository(request)
+            
+            # 检查仓库是否为公开
+            is_public = response.is_public if hasattr(response, 'is_public') else False
+            
+            if is_public:
+                print(f'验证成功: 仓库 {namespace}/{repository} 已设置为公开')
+                print(f'仓库详情: {response}')
+                sys.exit(0)
+            else:
+                print(f'验证失败: 仓库 {namespace}/{repository} 不是公开的')
+                print(f'仓库详情: {response}')
+                sys.exit(1)
+        except exceptions.ClientRequestException as e:
+            print(f'错误: 获取仓库信息失败')
+            print(f'状态码: {e.status_code}')
+            print(f'错误信息: {e.error_msg}')
+            sys.exit(1)
+        EOF
     
     - name: Send Success Notification
       id: send-success
