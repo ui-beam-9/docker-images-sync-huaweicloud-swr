@@ -327,7 +327,7 @@ docker-compose logs -f
 
 ### 3️⃣ 查询已同步镜像
 
-访问 [已同步镜像查询](https://404.ui-beam.com/404.html) 查看已经同步过的镜像列表。
+访问 [已同步镜像查询](https://docker-images.ui-beam.com/) 查看已经同步过的镜像列表。
 
 ---
 
@@ -436,15 +436,57 @@ docker-compose logs -f
 
 ---
 
-## 📋 华为云 SWR 区域对照表
+华为云容器镜像服务（SWR）支持以下区域，按地理位置分类：
 
-| 区域代码 | 区域名称 | 完整域名 |
-|---------|---------|---------|
-| `cn-north-4` | 华北-北京四 | swr.cn-north-4.myhuaweicloud.com |
-| `cn-north-1` | 华北-北京一 | swr.cn-north-1.myhuaweicloud.com |
-| `cn-east-3` | 华东-上海一 | swr.cn-east-3.myhuaweicloud.com |
-| `cn-east-2` | 华东-上海二 | swr.cn-east-2.myhuaweicloud.com |
-| `cn-south-1` | 华南-广州 | swr.cn-south-1.myhuaweicloud.com |
+### 🌏 亚太（13 个区域）
+
+**中国**：
+| 区域代码 | 区域名称 | 镜像仓库地址 |
+|---------|---------|-------------|
+| `cn-north-4` | 华北-北京四 | `swr.cn-north-4.myhuaweicloud.com` |
+| `cn-north-9` | 华北-乌兰察布一 | `swr.cn-north-9.myhuaweicloud.com` |
+| `cn-north-12` | 华北三 | `swr.cn-north-12.myhuaweicloud.com` |
+| `cn-east-3` | 华东-上海一 | `swr.cn-east-3.myhuaweicloud.com` |
+| `cn-east-4` | 华东二 | `swr.cn-east-4.myhuaweicloud.com` |
+| `cn-east-5` | 华东-青岛 | `swr.cn-east-5.myhuaweicloud.com` |
+| `cn-south-1` | 华南-广州 | `swr.cn-south-1.myhuaweicloud.com` |
+| `cn-south-4` | 华南-广州-友好用户环境 | `swr.cn-south-4.myhuaweicloud.com` |
+| `cn-southwest-2` | 西南-贵阳一 | `swr.cn-southwest-2.myhuaweicloud.com` |
+| `ap-southeast-1` | 中国-香港 | `swr.ap-southeast-1.myhuaweicloud.com` |
+
+**其他亚太地区**：
+| 区域代码 | 区域名称 | 镜像仓库地址 |
+|---------|---------|-------------|
+| `ap-southeast-2` | 亚太-曼谷 | `swr.ap-southeast-2.myhuaweicloud.com` |
+| `ap-southeast-3` | 亚太-新加坡 | `swr.ap-southeast-3.myhuaweicloud.com` |
+| `ap-southeast-4` | 亚太-雅加达 | `swr.ap-southeast-4.myhuaweicloud.com` |
+
+### 🕌 中东（1 个区域）
+
+| 区域代码 | 区域名称 | 镜像仓库地址 |
+|---------|---------|-------------|
+| `me-east-1` | 中东-利雅得 | `swr.me-east-1.myhuaweicloud.com` |
+
+### 🌍 非洲（2 个区域）
+
+| 区域代码 | 区域名称 | 镜像仓库地址 |
+|---------|---------|-------------|
+| `af-south-1` | 非洲-约翰内斯堡 | `swr.af-south-1.myhuaweicloud.com` |
+| `af-north-1` | 非洲-开罗 | `swr.af-north-1.myhuaweicloud.com` |
+
+### 🇹🇷 土耳其（1 个区域）
+
+| 区域代码 | 区域名称 | 镜像仓库地址 |
+|---------|---------|-------------|
+| `tr-west-1` | 土耳其-伊斯坦布尔 | `swr.tr-west-1.myhuaweicloud.com` |
+
+### 🌎 拉美（3 个区域）
+
+| 区域代码 | 区域名称 | 镜像仓库地址 |
+|---------|---------|-------------|
+| `la-north-2` | 拉美-墨西哥城二 | `swr.la-north-2.myhuaweicloud.com` |
+| `sa-brazil-1` | 拉美-圣保罗一 | `swr.sa-brazil-1.myhuaweicloud.com` |
+| `la-south-2` | 拉美-圣地亚哥 | `swr.la-south-2.myhuaweicloud.com` |
 
 ---
 

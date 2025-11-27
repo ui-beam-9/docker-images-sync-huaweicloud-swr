@@ -1,5 +1,8 @@
-# 环境变量文件
+# 配置文件（包含敏感信息）
+config.js
 .env
+.env.local
+.env.production
 .env.local
 .env.*.local
 
@@ -41,6 +44,9 @@ env/
 # 日志文件
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # 操作系统
 .DS_Store
@@ -53,3 +59,24 @@ docker-compose.override.yml
 *.tmp
 *.bak
 *.cache
+
+# 依赖
+node_modules/
+package-lock.json
+yarn.lock
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 部署
+.vercel
+.edgeone
+dist/
+build/
+
+#网页文件
+web/
